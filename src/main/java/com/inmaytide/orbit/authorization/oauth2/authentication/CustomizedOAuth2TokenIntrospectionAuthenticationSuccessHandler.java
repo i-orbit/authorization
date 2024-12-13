@@ -1,5 +1,6 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
+import com.inmaytide.orbit.authorization.service.UserActivityService;
 import com.inmaytide.orbit.commons.utils.ApplicationContextHolder;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,7 +37,7 @@ public class CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler impl
         this.tokenIntrospectionHttpResponseConverter.write(tokenClaims, null, httpResponse);
 
         if (tokenClaims.isActive()) {
-            Thread.ofVirtual().start(() -> getUserActivityService().alterUserActivity(request, tokenClaims));
+            Thread.ofVirtual().start(() -> getUserActivityService().cacheUserActivity(request, tokenClaims));
         }
     }
 

@@ -2,7 +2,9 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.exception.web.AccessDeniedException;
 import com.inmaytide.orbit.authorization.configuration.ApplicationProperties;
+import com.inmaytide.orbit.authorization.configuration.ErrorCode;
 import com.inmaytide.orbit.authorization.oauth2.service.ExtensibleOAuth2AuthorizationService;
+import com.inmaytide.orbit.commons.business.SystemUserService;
 import com.inmaytide.orbit.commons.constants.Bool;
 import com.inmaytide.orbit.commons.constants.Constants;
 import com.inmaytide.orbit.commons.constants.Platforms;
@@ -103,7 +105,7 @@ public class OAuth2PasswordAuthenticationProvider implements AuthenticationProvi
                                 service.remove(authorization);
                             }
                         } else {
-                            throw new AccessDeniedException(ErrorCode.E_0x00100001);
+                            throw new AccessDeniedException(ErrorCode.E_0x02100005);
                         }
                     }
                 }
@@ -147,7 +149,7 @@ public class OAuth2PasswordAuthenticationProvider implements AuthenticationProvi
             authorizationService.save(authorizationBuilder.build());
 
             Map<String, Object> additionalResponseValues = new HashMap<>();
-            ApplicationContextHolder.getInstance().getBean(UserService.class).findByLoginName(username).ifPresent(user -> {
+            ApplicationContextHolder.getInstance().getBean(SystemUserService.class).findByUsername(username).ifPresent(user -> {
                 additionalResponseValues.put("userId", user.getId());
                 additionalResponseValues.put("tenant", user.getTenant());
                 additionalResponseValues.put("username", user.getName());
@@ -157,7 +159,7 @@ public class OAuth2PasswordAuthenticationProvider implements AuthenticationProvi
             if (ex instanceof BadCredentialsException) {
                 throw new OAuth2AuthenticationException(
                         new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST),
-                        new com.inmaytide.exception.web.BadCredentialsException(ErrorCode.E_0x00100003)
+                        new com.inmaytide.exception.web.BadCredentialsException(ErrorCode.E_0x02100006)
                 );
             }
             throw new OAuth2AuthenticationException(new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR), ex);

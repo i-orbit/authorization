@@ -16,6 +16,8 @@ public class ApplicationProperties extends GlobalProperties {
 
     private boolean allowUsersToLoginSimultaneously = false;
 
+    private boolean hideActualMessageOfUserLoginFailures = true;
+
     public long getRestrictedTenantMaximumOnlineUsers() {
         return restrictedTenantMaximumOnlineUsers;
     }
@@ -30,5 +32,13 @@ public class ApplicationProperties extends GlobalProperties {
 
     public void setAllowUsersToLoginSimultaneously(boolean allowUsersToLoginSimultaneously) {
         this.allowUsersToLoginSimultaneously = allowUsersToLoginSimultaneously;
+    }
+
+    public boolean isHideActualMessageOfUserLoginFailures() {
+        return hideActualMessageOfUserLoginFailures;
+    }
+
+    public void setHideActualMessageOfUserLoginFailures(boolean hideActualMessageOfUserLoginFailures) {
+        this.hideActualMessageOfUserLoginFailures = hideActualMessageOfUserLoginFailures;
     }
 }

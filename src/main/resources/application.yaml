@@ -1,6 +1,6 @@
 spring:
     application:
-        name: uaa
+        name: authorization
     profiles:
         active: dev
     config:
@@ -17,3 +17,4 @@ spring:
                 username: nacos
                 password: nacos
                 namespace: ${spring.profiles.active}
+
