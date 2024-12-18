@@ -80,15 +80,7 @@ public class DefaultSystemUserService implements SystemUserService {
 
     @Override
     public Optional<SystemUser> findByUsername(String username) {
-        Specification<User> specification = (root, query, cb) -> {
-            return cb.or(
-                    cb.equal(root.get("telephoneNumber"), username),
-                    cb.equal(root.get("loginName"), username),
-                    cb.equal(root.get("email"), username),
-                    cb.equal(root.get("employeeId"), username)
-            );
-        };
-        return userRepository.findOne(specification).map(u -> self.get(u.getId()));
+        return userRepository.findIdByUsername(username).map(self::get);
     }
 
     private <T> T createObjectCopiedFields(Object source, Supplier<T> supplier) {
