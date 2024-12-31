@@ -9,6 +9,7 @@ import com.inmaytide.orbit.commons.constants.Bool;
 import com.inmaytide.orbit.commons.constants.Constants;
 import com.inmaytide.orbit.commons.constants.Platforms;
 import com.inmaytide.orbit.commons.utils.ApplicationContextHolder;
+import com.inmaytide.orbit.commons.utils.CodecUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -70,6 +71,12 @@ public class OAuth2PasswordAuthenticationProvider implements AuthenticationProvi
         String username = (String) additionalParameters.get(OAuth2ParameterNames.USERNAME);
         String password = (String) additionalParameters.get(OAuth2ParameterNames.PASSWORD);
         Platforms platform = Platforms.valueOf((String) additionalParameters.get(PARAMETER_NAME_PLATFORM));
+
+        try {
+            password = CodecUtils.decrypt(password);
+        } catch (Exception e) {
+            throw new com.inmaytide.exception.web.BadCredentialsException(ErrorCode.E_0x02100006);
+        }
 
         // 当用户在其他地方已登录时, 是否强制登录
         Object value = additionalParameters.get(PARAMETER_NAME_FORCED_REPLACEMENT);

@@ -58,11 +58,6 @@ public class OAuth2PasswordAuthenticationConverter implements AuthenticationConv
         if (!StringUtils.hasText(password) || parameters.get(OAuth2ParameterNames.PASSWORD).size() != 1) {
             throwError(OAuth2ParameterNames.PASSWORD);
         }
-        try {
-            password = CodecUtils.decrypt(password);
-        } catch (Exception e) {
-            throwError(OAuth2ParameterNames.PASSWORD);
-        }
 
         String platform = parameters.getFirst(OAuth2PasswordAuthenticationProvider.PARAMETER_NAME_PLATFORM);
         try {
