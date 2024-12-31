@@ -18,7 +18,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
@@ -163,10 +162,10 @@ public class DefaultSystemUserService implements SystemUserService {
         Permission permission = new Permission();
         permission.setRoles(user.getRoles().stream().map(Role::getCode).toList());
         permission.setAuthorities(findAuthorityCodes(user));
-        permission.setOrganizations(findAuthorizedOrganizationIds(user));
-        permission.setSpecifiedOrganizations(permission.getOrganizations());
         permission.setAreas(findAuthorizedAreaIds(user));
+        permission.setOrganizations(findAuthorizedOrganizationIds(user));
         permission.setSpecifiedAreas(permission.getAreas());
+        permission.setSpecifiedOrganizations(permission.getOrganizations());
         user.setPermission(permission);
     }
 

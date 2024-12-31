@@ -1,6 +1,7 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.commons.constants.Platforms;
+import com.inmaytide.orbit.commons.utils.CodecUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -55,6 +56,11 @@ public class OAuth2PasswordAuthenticationConverter implements AuthenticationConv
         // password (REQUIRED)
         String password = parameters.getFirst(OAuth2ParameterNames.PASSWORD);
         if (!StringUtils.hasText(password) || parameters.get(OAuth2ParameterNames.PASSWORD).size() != 1) {
+            throwError(OAuth2ParameterNames.PASSWORD);
+        }
+        try {
+            password = CodecUtils.decrypt(password);
+        } catch (Exception e) {
             throwError(OAuth2ParameterNames.PASSWORD);
         }
 
