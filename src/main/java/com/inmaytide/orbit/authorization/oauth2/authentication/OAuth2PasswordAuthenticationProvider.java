@@ -72,12 +72,6 @@ public class OAuth2PasswordAuthenticationProvider implements AuthenticationProvi
         String password = (String) additionalParameters.get(OAuth2ParameterNames.PASSWORD);
         Platforms platform = Platforms.valueOf((String) additionalParameters.get(PARAMETER_NAME_PLATFORM));
 
-        try {
-            password = CodecUtils.decrypt(password);
-        } catch (Exception e) {
-            throw new com.inmaytide.exception.web.BadCredentialsException(ErrorCode.E_0x02100006);
-        }
-
         // 当用户在其他地方已登录时, 是否强制登录
         Object value = additionalParameters.get(PARAMETER_NAME_FORCED_REPLACEMENT);
         if (value == null || !Pattern.compile("[YN]").asPredicate().test(value.toString())) {
@@ -91,6 +85,12 @@ public class OAuth2PasswordAuthenticationProvider implements AuthenticationProvi
         }
 
         try {
+            try {
+                password = CodecUtils.decrypt(password);
+            } catch (Exception e) {
+                throw new com.inmaytide.exception.web.BadCredentialsException(ErrorCode.E_0x02100006);
+            }
+
             UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(username, password);
             LOG.debug("Got UsernamePasswordAuthenticationToken={}", usernamePasswordAuthenticationToken);
 
