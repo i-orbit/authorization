@@ -42,7 +42,7 @@ public class UserActivityServiceImpl implements UserActivityService {
     public void cacheUserActivity(HttpServletRequest request, OAuth2TokenIntrospection tokenClaims) {
         try {
             Platforms platform = Platforms.valueOf(tokenClaims.getClaimAsString("platform"));
-            Long userId = NumberUtils.createLong(tokenClaims.getUsername());
+            String userId = tokenClaims.getUsername();
             try {
                 UserActivity activity = ValueCaches
                         .getFor(USER_ACTIVITY, getUserActivityCacheKey(platform, userId), UserActivity.class)
@@ -61,7 +61,7 @@ public class UserActivityServiceImpl implements UserActivityService {
     }
 
     @Override
-    public Long getNumberOfOnlineUsers(Long tenant) {
+    public Long getNumberOfOnlineUsers(String tenant) {
         List<Long> all = ValueCaches.keys(USER_ACTIVITY).stream()
                 .map(e -> StringUtils.split(e, "::")[1])
                 .map(NumberUtils::createLong)
@@ -72,7 +72,7 @@ public class UserActivityServiceImpl implements UserActivityService {
         return userRepository.count((root, query, cb) -> cb.and(root.get("id").in(all), cb.equal(root.get("tenant"), tenant)));
     }
 
-    private String getUserActivityCacheKey(Platforms platform, Long userId) {
+    private String getUserActivityCacheKey(Platforms platform, String userId) {
         return platform.name() + "::" + userId;
     }
 }

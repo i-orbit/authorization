@@ -23,9 +23,9 @@ public class User implements Serializable {
     private static final long serialVersionUID = Version.SERIAL_VERSION_UID;
 
     @Id
-    private Long id;
+    private String id;
 
-    private Long tenant;
+    private String tenant;
 
     @Enumerated(EnumType.STRING)
     private Bool isTenantAdministrator;
@@ -73,7 +73,7 @@ public class User implements Serializable {
 
     private Instant statusTime;
 
-    private Long proxy;
+    private String proxy;
 
     private String personnelStatus;
 
@@ -88,19 +88,19 @@ public class User implements Serializable {
 
     private LocalDate resignationDate;
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public Long getTenant() {
+    public String getTenant() {
         return tenant;
     }
 
-    public void setTenant(Long tenant) {
+    public void setTenant(String tenant) {
         this.tenant = tenant;
     }
 
@@ -264,11 +264,11 @@ public class User implements Serializable {
         this.statusTime = statusTime;
     }
 
-    public Long getProxy() {
+    public String getProxy() {
         return proxy;
     }
 
-    public void setProxy(Long proxy) {
+    public void setProxy(String proxy) {
         this.proxy = proxy;
     }
 

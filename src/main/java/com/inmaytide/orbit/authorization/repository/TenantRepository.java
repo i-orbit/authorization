@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
  * @since 2024/12/6
  */
 @Repository
-public interface TenantRepository extends JpaRepository<Tenant, Long> {
+public interface TenantRepository extends JpaRepository<Tenant, String> {
 }

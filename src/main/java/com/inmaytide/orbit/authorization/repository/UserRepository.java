@@ -14,9 +14,9 @@ import java.util.Optional;
  * @since 2024/12/6
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
+public interface UserRepository extends JpaRepository<User, String>, JpaSpecificationExecutor<User> {
 
     @Query("select u.id from User u where u.telephoneNumber = :username or u.loginName = :username or u.employeeId = :username or u.email = :username")
-    Optional<Long> findIdByUsername(@Param("username") String username);
+    Optional<String> findIdByUsername(@Param("username") String username);
 
 }

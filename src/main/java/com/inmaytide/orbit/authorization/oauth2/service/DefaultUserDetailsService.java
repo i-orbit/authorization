@@ -23,7 +23,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -84,25 +83,24 @@ public class DefaultUserDetailsService implements org.springframework.security.c
         if (Objects.equals(user.getTenant(), Constants.Markers.NON_TENANT_ID)) {
             return;
         }
-        Optional<Tenant> op = tenantRepository.findById(user.getTenant());
-        // 用户所属租户不存在
-        if (op.isEmpty()) {
-            throw new AccessDeniedException(ErrorCode.E_0x02100002);
-        }
-        Tenant tenant = op.get();
+        Tenant tenant = tenantRepository.findById(user.getTenant()).orElseThrow(() -> accessDenied(ErrorCode.E_0x02100002));
         // 用户所属租户已禁用
         if (tenant.getStatus() == TenantStatus.DISABLED) {
-            throw new AccessDeniedException(ErrorCode.E_0x02100003);
+            throw accessDenied(ErrorCode.E_0x02100003);
         }
         // 用户所属租户已过期
         if (tenant.getStatus() == TenantStatus.EXPIRED) {
             if (user.getIsTenantAdministrator() != Bool.Y) {
-                throw new AccessDeniedException(ErrorCode.E_0x02100004);
+                throw accessDenied(ErrorCode.E_0x02100004);
             }
             if (userActivityService.getNumberOfOnlineUsers(tenant.getId()) >= props.getRestrictedTenantMaximumOnlineUsers()) {
-                throw new AccessDeniedException(ErrorCode.E_0x02100004);
+                throw accessDenied(ErrorCode.E_0x02100004);
             }
         }
+    }
+
+    private AccessDeniedException accessDenied(ErrorCode errorCode) {
+        return new AccessDeniedException(errorCode);
     }
 
     private List<GrantedAuthority> createAuthoritiesWithUser(SystemUser user) {

@@ -73,7 +73,7 @@ public class DefaultSystemUserService implements SystemUserService {
         if (!NumberUtils.isCreatable(Objects.toString(id, ""))) {
             throw new ObjectNotFoundException(ErrorCode.E_0x02100001, Objects.toString(id, "null"));
         }
-        User user = userRepository.findById(NumberUtils.createLong(Objects.toString(id))).orElseThrow(() -> new ObjectNotFoundException(ErrorCode.E_0x02100001, Objects.toString(id, "null")));
+        User user = userRepository.findById(Objects.toString(id)).orElseThrow(() -> new ObjectNotFoundException(ErrorCode.E_0x02100001, Objects.toString(id, "null")));
         return transferUserToSystemUser(user);
     }
 
@@ -137,7 +137,7 @@ public class DefaultSystemUserService implements SystemUserService {
     }
 
     private void setRoles(SystemUser user, Bool isTenantAdministrator) {
-        List<Long> ids = userAssociationRepository
+        List<String> ids = userAssociationRepository
                 .findByUserAndCategory(user.getId(), UserAssociationCategory.ROLE)
                 .stream()
                 .map(e -> e.getId().getAssociated())
@@ -169,7 +169,7 @@ public class DefaultSystemUserService implements SystemUserService {
         user.setPermission(permission);
     }
 
-    private List<Long> findAuthorizedOrganizationIds(SystemUser user) {
+    private List<String> findAuthorizedOrganizationIds(SystemUser user) {
         List<String> roleCodes = user.getRoles().stream().map(Role::getCode).toList();
         if (roleCodes.isEmpty()) {
             return List.of();
@@ -185,7 +185,7 @@ public class DefaultSystemUserService implements SystemUserService {
         return organizationRepository.findIdsByRoleIds(UserAssociationCategory.ORGANIZATION.name(), user.getRoles().stream().map(Role::getId).toList());
     }
 
-    private List<Long> findAuthorizedAreaIds(SystemUser user) {
+    private List<String> findAuthorizedAreaIds(SystemUser user) {
         return List.of();
     }
 

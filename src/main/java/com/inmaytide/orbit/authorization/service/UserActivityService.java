@@ -17,6 +17,6 @@ public interface UserActivityService {
      * @param tenant 指定租户ID
      * @return 租户当前在线用户数量
      */
-    Long getNumberOfOnlineUsers(Long tenant);
+    Long getNumberOfOnlineUsers(String tenant);
 
 }

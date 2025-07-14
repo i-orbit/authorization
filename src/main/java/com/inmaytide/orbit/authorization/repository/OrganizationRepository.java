@@ -13,14 +13,14 @@ import java.util.List;
  * @since 2024/12/12
  */
 @Repository
-public interface OrganizationRepository extends JpaRepository<Organization, Long> {
+public interface OrganizationRepository extends JpaRepository<Organization, String> {
 
-    List<Long> findIdsByTenant(Long tenant);
+    List<String> findIdsByTenant(String tenant);
 
     @Query("select o.id from Organization o")
-    List<Long> findIds();
+    List<String> findIds();
 
     @Query(nativeQuery = true, value = "select associated from role_association where category = :category and role in (:roleIds)")
-    List<Long> findIdsByRoleIds(@Param("category") String category, @Param("roleIds") List<Long> roleIds);
+    List<String> findIdsByRoleIds(@Param("category") String category, @Param("roleIds") List<String> roleIds);
     
 }

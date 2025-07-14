@@ -21,17 +21,17 @@ public class Tenant implements Serializable {
     private static final long serialVersionUID = Version.SERIAL_VERSION_UID;
 
     @Id
-    private Long id;
+    private String id;
 
     private String name;
 
     private TenantStatus status;
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 

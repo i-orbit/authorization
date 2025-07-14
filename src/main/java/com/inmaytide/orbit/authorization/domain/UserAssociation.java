@@ -2,7 +2,6 @@ package com.inmaytide.orbit.authorization.domain;
 
 import com.inmaytide.orbit.Version;
 import com.inmaytide.orbit.commons.constants.Bool;
-import com.inmaytide.orbit.commons.constants.UserAssociationCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;

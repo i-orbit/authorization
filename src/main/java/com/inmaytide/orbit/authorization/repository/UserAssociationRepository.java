@@ -18,5 +18,5 @@ import java.util.List;
 public interface UserAssociationRepository extends JpaRepository<UserAssociation, UserAssociationPrimaryKey> {
 
     @Query("select ua from UserAssociation ua where ua.id.user = :user and ua.id.category = :category")
-    List<UserAssociation> findByUserAndCategory(@Param("user") Long user, @Param("category") UserAssociationCategory category);
+    List<UserAssociation> findByUserAndCategory(@Param("user") String user, @Param("category") UserAssociationCategory category);
 }

@@ -16,10 +16,10 @@ import java.util.Objects;
 public class UserAssociationPrimaryKey {
 
     @Column(name = "user")
-    private Long user;
+    private String user;
 
     @Column(name = "associated")
-    private Long associated;
+    private String associated;
 
     @Column(name = "category")
     @Enumerated(EnumType.STRING)
@@ -28,25 +28,25 @@ public class UserAssociationPrimaryKey {
     public UserAssociationPrimaryKey() {
     }
 
-    public UserAssociationPrimaryKey(Long user, Long associated, UserAssociationCategory category) {
+    public UserAssociationPrimaryKey(String user, String associated, UserAssociationCategory category) {
         this.user = user;
         this.associated = associated;
         this.category = category;
     }
 
-    public Long getUser() {
+    public String getUser() {
         return user;
     }
 
-    public void setUser(Long user) {
+    public void setUser(String user) {
         this.user = user;
     }
 
-    public Long getAssociated() {
+    public String getAssociated() {
         return associated;
     }
 
-    public void setAssociated(Long associated) {
+    public void setAssociated(String associated) {
         this.associated = associated;
     }
 

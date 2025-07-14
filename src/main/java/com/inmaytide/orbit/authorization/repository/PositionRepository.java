@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
  * @since 2024/12/12
  */
 @Repository
-public interface PositionRepository extends JpaRepository<Position, Long> {
+public interface PositionRepository extends JpaRepository<Position, String> {
 }

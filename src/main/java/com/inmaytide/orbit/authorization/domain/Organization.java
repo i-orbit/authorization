@@ -20,27 +20,27 @@ public class Organization implements Serializable {
     private static final long serialVersionUID = Version.SERIAL_VERSION_UID;
 
     @Id
-    private Long id;
+    private String id;
 
-    private Long tenant;
+    private String tenant;
 
     private String code;
 
     private String name;
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public Long getTenant() {
+    public String getTenant() {
         return tenant;
     }
 
-    public void setTenant(Long tenant) {
+    public void setTenant(String tenant) {
         this.tenant = tenant;
     }
 

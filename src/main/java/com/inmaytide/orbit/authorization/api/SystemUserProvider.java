@@ -19,7 +19,7 @@ public class SystemUserProvider {
     }
 
     @GetMapping("{id}")
-    public SystemUser get(@PathVariable Long id) {
+    public SystemUser get(@PathVariable String id) {
         return service.get(id);
     }
 }
