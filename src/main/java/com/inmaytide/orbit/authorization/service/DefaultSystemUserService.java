@@ -70,9 +70,6 @@ public class DefaultSystemUserService implements SystemUserService {
         if (Objects.equals(id, Robot.getInstance().getId())) {
             return Robot.getInstance().toSystemUser();
         }
-        if (!NumberUtils.isCreatable(Objects.toString(id, ""))) {
-            throw new ObjectNotFoundException(ErrorCode.E_0x02100001, Objects.toString(id, "null"));
-        }
         User user = userRepository.findById(Objects.toString(id)).orElseThrow(() -> new ObjectNotFoundException(ErrorCode.E_0x02100001, Objects.toString(id, "null")));
         return transferUserToSystemUser(user);
     }
