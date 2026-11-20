@@ -18,7 +18,7 @@ import java.io.IOException;
 public class ResponseWrapperAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     @Override
-    public void commence(@Nonnull HttpServletRequest request, @Nonnull  HttpServletResponse response, @Nonnull  AuthenticationException exception) throws IOException, ServletException {
+    public void commence(@Nonnull HttpServletRequest request, @Nonnull  HttpServletResponse response, @Nonnull  AuthenticationException exception) throws IOException {
         log.error("errorrrr: ", exception);
         response.getWriter().println("111111");
     }

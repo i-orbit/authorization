@@ -1,11 +1,13 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.authorization.domain.LoginRequest;
+import com.inmaytide.orbit.framework.Version;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
+import java.io.Serial;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +19,9 @@ import java.util.Map;
  */
 @Getter
 public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationToken {
+
+    @Serial
+    private static final long serialVersionUID = Version.SERIAL_VERSION_UID;
 
     public static final String PARAMETER_NAME_PLATFORM = "platform";
 

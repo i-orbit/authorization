@@ -1,5 +1,6 @@
 package com.inmaytide.orbit.authorization.oauth2.service;
 
+import com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken;
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +46,8 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
 
     private static final long TTL_AUTHORIZATION = 30 * 60 * 1000;
 
+    private static final Set<String> LOGIN_AUTHORIZATION_ATTRIBUTES = Set.of(PARAMETER_NAME_PLATFORM);
+
     private final Map<String, OAuth2Authorization> initializedAuthorizations = new ConcurrentHashMap<>();
 
     private final RedisTemplate<String, OAuth2Authorization> redisTemplate;
@@ -68,10 +72,11 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
     @Override
     public void save(@Nonnull OAuth2Authorization authorization) {
         Assert.notNull(authorization, "Authorization cannot be null");
-        if (isComplete(authorization)) {
-            redisTemplate.opsForValue().set(buildCacheKey(authorization), authorization, Duration.ofMillis(TTL_AUTHORIZATION));
+        OAuth2Authorization enriched = copyLoginAttributes(authorization);
+        if (isComplete(enriched)) {
+            redisTemplate.opsForValue().set(buildCacheKey(enriched), enriched, Duration.ofMillis(TTL_AUTHORIZATION));
         } else {
-            this.initializedAuthorizations.put(authorization.getId(), authorization);
+            this.initializedAuthorizations.put(enriched.getId(), enriched);
         }
     }
 
@@ -81,7 +86,7 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
         if (isComplete(authorization)) {
             redisTemplate.opsForValue().getAndDelete(buildCacheKey(authorization));
         } else {
-            this.initializedAuthorizations.remove(authorization.getId(), authorization);
+            this.initializedAuthorizations.remove(authorization.getId());
         }
     }
 
@@ -131,6 +136,33 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
         }
         Object value = authorization.getAttribute(PARAMETER_NAME_PLATFORM);
         return value != null && platform.name().equals(value.toString());
+    }
+
+    private static OAuth2Authorization copyLoginAttributes(OAuth2Authorization authorization) {
+        if (authorization.getAttribute(PARAMETER_NAME_PLATFORM) != null) {
+            return authorization;
+        }
+
+        Object principal = authorization.getAttribute(Principal.class.getName());
+        if (!(principal instanceof UsernamePasswordAuthenticationToken token)) {
+            return authorization;
+        }
+
+        Map<String, Object> parameters = token.getAdditionalParameters();
+        if (parameters == null || parameters.isEmpty()) {
+            return authorization;
+        }
+
+        return OAuth2Authorization.from(authorization)
+                .attributes(attributes -> {
+                    for (String name : LOGIN_AUTHORIZATION_ATTRIBUTES) {
+                        Object value = parameters.get(name);
+                        if (value != null) {
+                            attributes.putIfAbsent(name, value);
+                        }
+                    }
+                })
+                .build();
     }
 
     private static boolean isComplete(OAuth2Authorization authorization) {

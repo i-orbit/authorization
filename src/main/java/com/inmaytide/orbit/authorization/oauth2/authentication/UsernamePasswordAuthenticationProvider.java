@@ -24,10 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_FORCE_REPLACEMENT;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM;
@@ -62,15 +59,12 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
         boolean withOutPassword = token.getUsername().endsWith(FLAG_LOGIN_WITHOUT_PASSWORD);
         String username = withOutPassword ? Strings.CS.removeEnd(rawUsername, FLAG_LOGIN_WITHOUT_PASSWORD) : rawUsername;
         String password = token.getPassword();
-        User user = userService.getByUsername(username).orElseThrow(() -> {
-            log.debug("No user found with username/phone/employeeId/email, {username: {})", username);
-            if (properties.isHideActualMessageOfUserLoginFailures()) {
-                return new BadCredentialsException("Invalid username or password");
-            } else {
-                return new UsernameNotFoundException("No user found with username/phone/employeeId/email");
-            }
-        });
-
+        Optional<User> optionalUser = userService.getByUsername(username);
+        if (optionalUser.isEmpty()) {
+            log.debug("No user found with username/phone/employeeId/email, {username: {}}", username);
+            throw new UsernameNotFoundException("No user found with username/phone/employeeId/email");
+        }
+        User user = optionalUser.get();
         if (withOutPassword) {
             log.debug("Passwordless login detected, skipping password verification");
         } else {
