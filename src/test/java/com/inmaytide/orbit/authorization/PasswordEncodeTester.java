@@ -1,6 +1,6 @@
 package com.inmaytide.orbit.authorization;
 
-import com.inmaytide.orbit.commons.utils.CodecUtils;
+import com.inmaytide.orbit.framework.core.utils.CodecUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /**

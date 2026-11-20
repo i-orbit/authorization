@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: authorization
+  namespace: orbit
+spec:
+  type: ClusterIP
+  selector:
+    app: authorization
+  ports:
+    - name: http
+      port: 30703
+      targetPort: 30703
+      protocol: TCP

@@ -16,7 +16,7 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, String>, JpaSpecificationExecutor<User> {
 
-    @Query("select u.id from User u where u.telephoneNumber = :username or u.loginName = :username or u.employeeId = :username or u.email = :username")
+    @Query("select u.id from User u where u.employeeNumber = :username or u.username = :username or u.phone = :username or u.email = :username")
     Optional<String> findIdByUsername(@Param("username") String username);
 
 }

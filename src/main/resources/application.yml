@@ -1,0 +1,41 @@
+server:
+  port: 30703
+spring:
+  application:
+    name: authorization
+  profiles:
+    active: dev
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    nacos:
+      config:
+        server-addr: 192.168.26.160:30848
+        username: nacos
+        password: zaq1@WSX
+        namespace: DEV_H160
+        file-extension: yml
+  config:
+    import:
+      - nacos:datasource.yml
+      - optional:nacos:${spring.application.name}.yml
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${datasource.mysql.host}:${datasource.mysql.port}/iam?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: ${datasource.mysql.username}
+    password: ${datasource.mysql.password}
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: none
+  data:
+    redis:
+      host: ${datasource.redis.host}
+      port: ${datasource.redis.port}
+      password: ${datasource.redis.password}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0

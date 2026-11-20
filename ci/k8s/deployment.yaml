@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authorization
+  namespace: orbit
+  labels:
+    app: authorization
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: authorization
+  template:
+    metadata:
+      labels:
+        app: authorization
+    spec:
+      imagePullSecrets:
+        - name: harbor-secret
+
+      containers:
+        - name: authorization
+          image: 192.168.26.180/orbit/authorization:placeholder
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 30701
+              protocol: TCP
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: NACOS_SERVER
+              value: "nacos.orbit.svc.cluster.local:8848"
+            - name: NACOS_USER
+              value: "nacos"
+            - name: NACOS_PASSWORD
+              value: "zaq1@WSX"
+            - name: NACOS_NAMESPACE
+              value: "PROD_H160"
+            - name: PROFILE
+              value: "prod"
+            - name: JVM_OPTS
+              value: "-Xms512m -Xmx1024m"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+          # 启动探针
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+
+          # 就绪探针
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # 存活探针
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3

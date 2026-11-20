@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 
 public class CustomizedOAuth2TokenIntrospectionAuthenticationProvider implements AuthenticationProvider {
 
+    public static final String PARAMETER_NAME_PLATFORM = "platform";
+
     private static final TypeDescriptor OBJECT_TYPE_DESCRIPTOR = TypeDescriptor.valueOf(Object.class);
 
     private static final TypeDescriptor LIST_STRING_TYPE_DESCRIPTOR = TypeDescriptor.collection(List.class, TypeDescriptor.valueOf(String.class));
@@ -88,8 +90,8 @@ public class CustomizedOAuth2TokenIntrospectionAuthenticationProvider implements
 
         tokenClaims.clientId(authorizedClient.getClientId());
         tokenClaims.username(authorization.getPrincipalName());
-        if (authorization.getAttribute(OAuth2PasswordAuthenticationProvider.PARAMETER_NAME_PLATFORM) != null) {
-            tokenClaims.claim(OAuth2PasswordAuthenticationProvider.PARAMETER_NAME_PLATFORM, authorization.getAttribute(OAuth2PasswordAuthenticationProvider.PARAMETER_NAME_PLATFORM));
+        if (authorization.getAttribute(PARAMETER_NAME_PLATFORM) != null) {
+            tokenClaims.claim(PARAMETER_NAME_PLATFORM, authorization.getAttribute(PARAMETER_NAME_PLATFORM));
         }
         UsernamePasswordAuthenticationToken principal = authorization.getAttribute("java.security.Principal");
         if (principal != null && !CollectionUtils.isEmpty(principal.getAuthorities())) {
