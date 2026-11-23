@@ -138,7 +138,7 @@ public class AuthorizationServerConfiguration {
         return RegisteredClient.withId(UserClientDetails.USER_CLIENT_ID)
                 .clientId(properties.getUserClient().getClientId())
                 .clientSecret(passwordEncoder.encode(properties.getUserClient().getClientSecret()))
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .scopes(scopes -> scopes.addAll(properties.getUserClient().getScopes()))
                 .redirectUris(uris -> uris.addAll(properties.getUserClient().getRedirectUris()))
