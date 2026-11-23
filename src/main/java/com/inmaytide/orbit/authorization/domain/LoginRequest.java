@@ -28,8 +28,8 @@ public class LoginRequest implements Serializable {
 
     private ClientPlatform platform;
 
-    @JsonAlias({"forcedReplacement", "forceReplacemnt"})
-    private boolean forceReplacement = false;
+    @JsonAlias({"forceReplacement", "forceReplacemnt"})
+    private boolean forcedReplacement = false;
 
     public static LoginRequest withHttpServletRequest(HttpServletRequest request) {
         try {
@@ -44,12 +44,12 @@ public class LoginRequest implements Serializable {
             if (StringUtils.isNotBlank(platform)) {
                 inst.setPlatform(ClientPlatform.valueOf(platform));
             }
-            String forceReplacement = StringUtils.firstNonBlank(
-                    request.getParameter("forceReplacement"),
+            String forcedReplacement = StringUtils.firstNonBlank(
                     request.getParameter("forcedReplacement"),
+                    request.getParameter("forceReplacement"),
                     request.getParameter("forceReplacemnt")
             );
-            inst.setForceReplacement(isTrue(forceReplacement));
+            inst.setForcedReplacement(isTrue(forcedReplacement));
             return inst;
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to parse login request", e);
@@ -57,8 +57,7 @@ public class LoginRequest implements Serializable {
     }
 
     private static boolean isTrue(String value) {
-        return "true".equalsIgnoreCase(value) || "1".equals(value)
-                || "yes".equalsIgnoreCase(value) || "y".equalsIgnoreCase(value);
+        return "true".equalsIgnoreCase(value) || "1".equals(value) || "yes".equalsIgnoreCase(value) || "y".equalsIgnoreCase(value);
     }
 
 }

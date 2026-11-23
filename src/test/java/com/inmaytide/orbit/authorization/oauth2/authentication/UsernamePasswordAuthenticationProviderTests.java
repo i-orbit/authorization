@@ -153,7 +153,7 @@ class UsernamePasswordAuthenticationProviderTests {
         request.setUsername("alice");
         request.setPassword(CodecUtils.encrypt("secret"));
         request.setPlatform(ClientPlatform.WEB);
-        request.setForceReplacement(forceReplacement);
+        request.setForcedReplacement(forceReplacement);
         return new UsernamePasswordAuthenticationToken(request);
     }
 

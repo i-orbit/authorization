@@ -33,16 +33,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class LoginAuthenticationFailureHandlerTests {
 
     private final JsonMapper objectMapper = JsonMapper.builder().build();
 
+    private final LoginAuditLogPublisher auditLogPublisher = mock(LoginAuditLogPublisher.class);
+
     private LoginAuthenticationFailureHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new LoginAuthenticationFailureHandler(objectMapper, true);
+        handler = new LoginAuthenticationFailureHandler(objectMapper, true, auditLogPublisher);
     }
 
     @ParameterizedTest
@@ -53,7 +56,7 @@ class LoginAuthenticationFailureHandlerTests {
 
     @Test
     void exposesUserNotFoundWhenFailureDetailsAreNotHidden() throws Exception {
-        handler = new LoginAuthenticationFailureHandler(objectMapper, false);
+        handler = new LoginAuthenticationFailureHandler(objectMapper, false, auditLogPublisher);
 
         MockHttpServletResponse response = handle(new UsernameNotFoundException("not found"));
 

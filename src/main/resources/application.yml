@@ -18,6 +18,8 @@ spring:
   config:
     import:
       - nacos:datasource.yml
+      - nacos:kafka.yml
+      - optional:nacos:security.yml
       - optional:nacos:${spring.application.name}.yml
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -35,3 +37,14 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap-servers}
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        delivery.timeout.ms: 120000
+        request.timeout.ms: 30000
+        max.block.ms: 60000
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer

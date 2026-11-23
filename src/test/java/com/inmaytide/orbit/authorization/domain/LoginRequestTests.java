@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LoginRequestTests {
 
     @Test
-    void parsesForceReplacementAliasesFromJson() {
+    void parsesForcedReplacementAndLegacyAliasesFromJson() {
         JsonMapper mapper = JsonMapper.builder().build();
 
         LoginRequest legacyJson = mapper.readValue("""
@@ -28,7 +28,7 @@ class LoginRequestTests {
                 }
                 """, LoginRequest.class);
 
-        assertThat(legacyJson.isForceReplacement()).isTrue();
-        assertThat(typoJson.isForceReplacement()).isTrue();
+        assertThat(legacyJson.isForcedReplacement()).isTrue();
+        assertThat(typoJson.isForcedReplacement()).isTrue();
     }
 }

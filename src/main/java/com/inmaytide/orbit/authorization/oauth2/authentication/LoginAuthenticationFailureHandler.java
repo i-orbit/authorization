@@ -45,9 +45,14 @@ final class LoginAuthenticationFailureHandler implements AuthenticationFailureHa
 
     private final boolean hideActualMessageOfUserLoginFailures;
 
-    LoginAuthenticationFailureHandler(ObjectMapper objectMapper, boolean hideActualMessageOfUserLoginFailures) {
+    private final LoginAuditLogPublisher auditLogPublisher;
+
+    LoginAuthenticationFailureHandler(ObjectMapper objectMapper,
+                                      boolean hideActualMessageOfUserLoginFailures,
+                                      LoginAuditLogPublisher auditLogPublisher) {
         this.objectMapper = objectMapper;
         this.hideActualMessageOfUserLoginFailures = hideActualMessageOfUserLoginFailures;
+        this.auditLogPublisher = auditLogPublisher;
     }
 
     @Override
@@ -60,6 +65,7 @@ final class LoginAuthenticationFailureHandler implements AuthenticationFailureHa
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         ResponseWrapper<Void> body = ResponseWrapper.failure(errorCode.getHttpStatus().value(), errorCode.getCode(), errorCode.getDescription());
         response.getWriter().println(JsonUtils.toJSONString(objectMapper, body));
+        auditLogPublisher.failure(request, errorCode);
     }
 
     ErrorCode resolveErrorCode(@Nonnull AuthenticationException exception) {

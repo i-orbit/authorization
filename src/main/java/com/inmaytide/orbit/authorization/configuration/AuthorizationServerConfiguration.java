@@ -6,6 +6,7 @@ import com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordA
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
 import com.inmaytide.orbit.authorization.oauth2.token.OrbitOAuth2TokenClaimsCustomizer;
+import com.inmaytide.orbit.authorization.service.UserActivityService;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
 import com.inmaytide.orbit.framework.security.domain.Robot;
@@ -89,11 +90,12 @@ public class AuthorizationServerConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http,
                                                                       LoginAuthenticationTokenService tokenService,
-                                                                      SecurityContextRepository securityContextRepository) throws Exception {
+                                                                      SecurityContextRepository securityContextRepository,
+                                                                      UserActivityService userActivityService) throws Exception {
         final OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         http.with(authorizationServerConfigurer, c -> {
             c.tokenIntrospectionEndpoint(endpoint -> {
-                endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler());
+                endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler(userActivityService));
             });
         });
         http.authorizeHttpRequests(authorize -> {
@@ -138,7 +140,7 @@ public class AuthorizationServerConfiguration {
                 .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .scopes(scopes -> scopes.addAll(properties.getUserClient().getScopes()))
-                .redirectUri("http://127.0.0.1:3000")
+                .redirectUris(uris -> uris.addAll(properties.getUserClient().getRedirectUris()))
                 .clientSettings(ClientSettings.builder().requireProofKey(true).requireAuthorizationConsent(false).build())
                 .tokenSettings(tokenSettings)
                 .build();

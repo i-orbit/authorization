@@ -25,7 +25,9 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
 
     public static final String PARAMETER_NAME_PLATFORM = "platform";
 
-    public static final String PARAMETER_NAME_FORCE_REPLACEMENT = "forceReplacement";
+    public static final String PARAMETER_NAME_FORCED_REPLACEMENT = "forcedReplacement";
+
+    public static final String PARAMETER_NAME_TENANT_ID = "tenantId";
 
     private final String username;
 
@@ -39,7 +41,7 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
         this.password = body.getPassword();
         this.additionalParameters = new HashMap<>();
         this.additionalParameters.put(PARAMETER_NAME_PLATFORM, body.getPlatform() == null ? null : body.getPlatform().name());
-        this.additionalParameters.put(PARAMETER_NAME_FORCE_REPLACEMENT, body.isForceReplacement());
+        this.additionalParameters.put(PARAMETER_NAME_FORCED_REPLACEMENT, body.isForcedReplacement());
         setAuthenticated(false);
     }
 

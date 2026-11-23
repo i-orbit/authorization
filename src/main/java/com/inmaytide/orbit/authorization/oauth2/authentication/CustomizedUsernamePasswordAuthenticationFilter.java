@@ -1,6 +1,7 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.authorization.domain.LoginRequest;
+import com.inmaytide.orbit.authorization.configuration.ErrorCode;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import com.inmaytide.orbit.framework.core.domain.dto.ResponseWrapper;
 import com.inmaytide.orbit.framework.core.utils.JsonUtils;
@@ -36,33 +37,52 @@ public class CustomizedUsernamePasswordAuthenticationFilter extends AbstractAuth
                                                           SecurityContextRepository securityContextRepository,
                                                           LoginAuthenticationTokenService tokenService,
                                                           SecurityProperties properties,
-                                                          ObjectMapper objectMapper) {
+                                                          ObjectMapper objectMapper,
+                                                          LoginAuditLogPublisher auditLogPublisher) {
         super(PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/login"));
         setAuthenticationManager(authenticationManager);
         setSecurityContextRepository(securityContextRepository);
-        setAuthenticationSuccessHandler(new LoginAuthenticationSuccessHandler(tokenService));
-        setAuthenticationFailureHandler(new LoginAuthenticationFailureHandler(objectMapper, properties.isHideActualMessageOfUserLoginFailures()));
+        setAuthenticationSuccessHandler(new LoginAuthenticationSuccessHandler(tokenService, auditLogPublisher));
+        setAuthenticationFailureHandler(new LoginAuthenticationFailureHandler(
+                objectMapper, properties.isHideActualMessageOfUserLoginFailures(), auditLogPublisher));
     }
+
+    static final String LOGIN_STARTED_AT_ATTRIBUTE = CustomizedUsernamePasswordAuthenticationFilter.class.getName() + ".startedAt";
+
+    static final String LOGIN_USERNAME_ATTRIBUTE = CustomizedUsernamePasswordAuthenticationFilter.class.getName() + ".username";
+
+    static final String LOGIN_PLATFORM_ATTRIBUTE = CustomizedUsernamePasswordAuthenticationFilter.class.getName() + ".platform";
+
+    static final String LOGIN_FORCED_REPLACEMENT_ATTRIBUTE = CustomizedUsernamePasswordAuthenticationFilter.class.getName() + ".forcedReplacement";
 
     @Override
     public @Nullable Authentication attemptAuthentication(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response) throws AuthenticationException, IOException, ServletException {
+        request.setAttribute(LOGIN_STARTED_AT_ATTRIBUTE, System.currentTimeMillis());
         LoginRequest body = LoginRequest.withHttpServletRequest(request);
+        request.setAttribute(LOGIN_USERNAME_ATTRIBUTE, body.getUsername());
+        request.setAttribute(LOGIN_PLATFORM_ATTRIBUTE, body.getPlatform());
+        request.setAttribute(LOGIN_FORCED_REPLACEMENT_ATTRIBUTE, body.isForcedReplacement());
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(body);
         return getAuthenticationManager().authenticate(authentication);
     }
 
     @Slf4j
-    private record LoginAuthenticationSuccessHandler(LoginAuthenticationTokenService tokenService)
-            implements AuthenticationSuccessHandler {
+    private record LoginAuthenticationSuccessHandler(LoginAuthenticationTokenService tokenService, LoginAuditLogPublisher auditLogPublisher) implements AuthenticationSuccessHandler {
 
         @Override
         public void onAuthenticationSuccess(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull Authentication authentication) throws IOException, ServletException {
             ((UsernamePasswordAuthenticationToken) authentication).eraseCredentials();
-            String accessToken = tokenService.store(authentication);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            Map<String, Object> data = Map.of("accessToken", accessToken, "tokenType", "Bearer");
-            response.getWriter().println(JsonUtils.toJSONString(ResponseWrapper.success(data)));
+            try {
+                String accessToken = tokenService.store(authentication);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                Map<String, Object> data = Map.of("accessToken", accessToken, "tokenType", "Bearer");
+                response.getWriter().println(JsonUtils.toJSONString(ResponseWrapper.success(data)));
+                auditLogPublisher.success(request, authentication);
+            } catch (RuntimeException e) {
+                auditLogPublisher.failure(request, ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE);
+                throw e;
+            }
         }
 
     }

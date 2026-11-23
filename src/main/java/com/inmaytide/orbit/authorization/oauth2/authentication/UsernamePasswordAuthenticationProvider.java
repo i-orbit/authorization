@@ -26,8 +26,9 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 
 import java.util.*;
 
-import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_FORCE_REPLACEMENT;
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_FORCED_REPLACEMENT;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM;
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID;
 
 /**
  * @author inmaytide
@@ -84,10 +85,13 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
         validateUserStatus(user);
         validateConcurrentLogin(user, token.getAdditionalParameters());
 
+        Map<String, Object> additionalParameters = new HashMap<>(token.getAdditionalParameters());
+        additionalParameters.put(PARAMETER_NAME_TENANT_ID, user.getTenantId());
+
         return new UsernamePasswordAuthenticationToken(
                 user.getId(),
                 user.getPassword(),
-                token.getAdditionalParameters(),
+                additionalParameters,
                 new ArrayList<>()
         );
     }
@@ -132,7 +136,7 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
             return;
         }
 
-        if (isForceReplacement(additionalParameters.get(PARAMETER_NAME_FORCE_REPLACEMENT))) {
+        if (isForceReplacement(additionalParameters.get(PARAMETER_NAME_FORCED_REPLACEMENT))) {
             authorizations.forEach(authorizationService::remove);
             log.info("Replacing existing login, {userId: {}, platform: {}, replacedSessions: {}}",
                     user.getId(), platform, authorizations.size());
