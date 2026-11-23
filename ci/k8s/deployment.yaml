@@ -26,7 +26,7 @@ spec:
 
           ports:
             - name: http
-              containerPort: 30701
+              containerPort: 30703
               protocol: TCP
           env:
             - name: TZ
