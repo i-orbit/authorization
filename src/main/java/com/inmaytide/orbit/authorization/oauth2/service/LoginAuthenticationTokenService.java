@@ -26,7 +26,7 @@ import java.util.Base64;
 @Component
 public class LoginAuthenticationTokenService {
 
-    private static final String REDIS_KEY_PREFIX = "orbit:security:authentication:";
+    private static final String REDIS_KEY_PREFIX = "orbit:authentication:";
 
     private static final StringKeyGenerator TOKEN_GENERATOR =
             new Base64StringKeyGenerator(Base64.getUrlEncoder().withoutPadding(), 32);

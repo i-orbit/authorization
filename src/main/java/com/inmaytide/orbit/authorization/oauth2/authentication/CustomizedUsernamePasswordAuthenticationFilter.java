@@ -33,18 +33,18 @@ import java.util.Map;
  */
 public class CustomizedUsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-    public CustomizedUsernamePasswordAuthenticationFilter(AuthenticationManager authenticationManager,
-                                                          SecurityContextRepository securityContextRepository,
-                                                          LoginAuthenticationTokenService tokenService,
-                                                          SecurityProperties properties,
-                                                          ObjectMapper objectMapper,
-                                                          LoginAuditLogPublisher auditLogPublisher) {
+    public CustomizedUsernamePasswordAuthenticationFilter(
+            AuthenticationManager authenticationManager,
+            SecurityContextRepository securityContextRepository,
+            LoginAuthenticationTokenService tokenService,
+            SecurityProperties properties,
+            ObjectMapper objectMapper,
+            LoginAuditLogPublisher auditLogPublisher) {
         super(PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/login"));
         setAuthenticationManager(authenticationManager);
         setSecurityContextRepository(securityContextRepository);
         setAuthenticationSuccessHandler(new LoginAuthenticationSuccessHandler(tokenService, auditLogPublisher));
-        setAuthenticationFailureHandler(new LoginAuthenticationFailureHandler(
-                objectMapper, properties.isHideActualMessageOfUserLoginFailures(), auditLogPublisher));
+        setAuthenticationFailureHandler(new LoginAuthenticationFailureHandler(objectMapper, properties.isHideActualMessageOfUserLoginFailures(), auditLogPublisher));
     }
 
     static final String LOGIN_STARTED_AT_ATTRIBUTE = CustomizedUsernamePasswordAuthenticationFilter.class.getName() + ".startedAt";
@@ -67,7 +67,8 @@ public class CustomizedUsernamePasswordAuthenticationFilter extends AbstractAuth
     }
 
     @Slf4j
-    private record LoginAuthenticationSuccessHandler(LoginAuthenticationTokenService tokenService, LoginAuditLogPublisher auditLogPublisher) implements AuthenticationSuccessHandler {
+    private record LoginAuthenticationSuccessHandler(LoginAuthenticationTokenService tokenService,
+                                                     LoginAuditLogPublisher auditLogPublisher) implements AuthenticationSuccessHandler {
 
         @Override
         public void onAuthenticationSuccess(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull Authentication authentication) throws IOException, ServletException {
@@ -79,6 +80,7 @@ public class CustomizedUsernamePasswordAuthenticationFilter extends AbstractAuth
                 Map<String, Object> data = Map.of("accessToken", accessToken, "tokenType", "Bearer");
                 response.getWriter().println(JsonUtils.toJSONString(ResponseWrapper.success(data)));
                 auditLogPublisher.success(request, authentication);
+
             } catch (RuntimeException e) {
                 auditLogPublisher.failure(request, ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE);
                 throw e;

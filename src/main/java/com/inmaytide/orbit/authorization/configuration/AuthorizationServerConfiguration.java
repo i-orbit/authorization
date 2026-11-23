@@ -121,7 +121,7 @@ public class AuthorizationServerConfiguration {
 
     @Bean
     public RegisteredClientRepository registeredClientRepository(PasswordEncoder passwordEncoder) {
-        return new InMemoryRegisteredClientRepository(user(), robot(passwordEncoder));
+        return new InMemoryRegisteredClientRepository(user(passwordEncoder), robot(passwordEncoder));
     }
 
     @Bean
@@ -129,7 +129,7 @@ public class AuthorizationServerConfiguration {
         return new OrbitOAuth2TokenClaimsCustomizer();
     }
 
-    private RegisteredClient user() {
+    private RegisteredClient user(PasswordEncoder passwordEncoder) {
         TokenSettings tokenSettings = TokenSettings.builder()
                 .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
                 .accessTokenTimeToLive(Duration.ofSeconds(properties.getUserClient().getAccessTokenValiditySeconds()))
@@ -137,6 +137,7 @@ public class AuthorizationServerConfiguration {
 
         return RegisteredClient.withId(UserClientDetails.USER_CLIENT_ID)
                 .clientId(properties.getUserClient().getClientId())
+                .clientSecret(passwordEncoder.encode(properties.getUserClient().getClientSecret()))
                 .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .scopes(scopes -> scopes.addAll(properties.getUserClient().getScopes()))
