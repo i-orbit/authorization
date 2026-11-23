@@ -38,7 +38,9 @@ public class SecurityConfiguration {
                                                    SecurityProperties properties,
                                                    LoginAuditLogPublisher auditLogPublisher) throws Exception {
         return http.authorizeHttpRequests(authorize -> {
-                            authorize.requestMatchers(HttpMethod.POST, "/login").permitAll()
+                            authorize
+                                    .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                                    .requestMatchers(HttpMethod.POST, "/login").permitAll()
                                     .anyRequest().authenticated();
                         }
                 )

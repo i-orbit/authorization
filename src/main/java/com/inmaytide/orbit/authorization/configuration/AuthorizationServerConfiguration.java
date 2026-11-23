@@ -98,10 +98,10 @@ public class AuthorizationServerConfiguration {
                 endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler(userActivityService));
             });
         });
+        http.securityMatcher(authorizationServerConfigurer.getEndpointsMatcher());
         http.authorizeHttpRequests(authorize -> {
             authorize.anyRequest().authenticated();
         });
-        http.securityMatcher(authorizationServerConfigurer.getEndpointsMatcher());
         http.exceptionHandling(exceptions -> {
                     exceptions.defaultAuthenticationEntryPointFor(
                             new LoginUrlAuthenticationEntryPoint("http://127.0.0.1:3000/login"),
