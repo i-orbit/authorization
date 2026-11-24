@@ -92,7 +92,7 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
                 user.getId(),
                 user.getPassword(),
                 additionalParameters,
-                new ArrayList<>()
+                userService.getAuthorities(user.getId())
         );
     }
 

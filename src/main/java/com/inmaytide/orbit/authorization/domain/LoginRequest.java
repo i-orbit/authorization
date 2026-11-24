@@ -34,8 +34,9 @@ public class LoginRequest implements Serializable {
     public static LoginRequest withHttpServletRequest(HttpServletRequest request) {
         try {
             if (request.getContentType() != null && request.getContentType().contains(MediaType.APPLICATION_JSON_VALUE)) {
-                return ApplicationContextHolder.getBean(ObjectMapper.class)
-                        .readValue(request.getInputStream(), LoginRequest.class);
+                ObjectMapper objectMapper = ApplicationContextHolder.getBean(ObjectMapper.class)
+                        .orElseThrow(() -> new IllegalStateException("ObjectMapper bean not found"));
+                return objectMapper.readValue(request.getInputStream(), LoginRequest.class);
             }
             LoginRequest inst = new LoginRequest();
             inst.setUsername(request.getParameter("username"));

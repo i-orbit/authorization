@@ -9,6 +9,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -55,6 +57,25 @@ class RedisOAuth2AuthorizationServiceTests {
     }
 
     @Test
+    void keepsAuthoritiesInsideTheLoginPrincipal() {
+        UsernamePasswordAuthenticationToken principal = principal(List.of(
+                new SimpleGrantedAuthority("ROLE_ADMIN"),
+                new SimpleGrantedAuthority("user:read")
+        ));
+        OAuth2Authorization authorization = authorization(principal);
+
+        authorizationService.save(authorization);
+
+        assertThat(authorizationService.findByPrincipalNameAndPlatform(
+                principal.getName(), ClientPlatform.WEB))
+                .singleElement()
+                .satisfies(saved -> assertThat(saved.<UsernamePasswordAuthenticationToken>getAttribute(
+                        Principal.class.getName()).getAuthorities())
+                        .extracting(GrantedAuthority::getAuthority)
+                        .containsExactly("ROLE_ADMIN", "user:read"));
+    }
+
+    @Test
     void removesInitializedAuthorizationByItsOriginalInstance() {
         UsernamePasswordAuthenticationToken principal = principal();
         OAuth2Authorization authorization = authorization(principal);
@@ -68,11 +89,15 @@ class RedisOAuth2AuthorizationServiceTests {
     }
 
     private static UsernamePasswordAuthenticationToken principal() {
+        return principal(List.of());
+    }
+
+    private static UsernamePasswordAuthenticationToken principal(List<GrantedAuthority> authorities) {
         return new UsernamePasswordAuthenticationToken(
                 "user-1",
                 null,
                 Map.of(UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM, ClientPlatform.WEB.name()),
-                List.of()
+                authorities
         );
     }
 

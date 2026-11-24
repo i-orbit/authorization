@@ -17,6 +17,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -68,6 +70,7 @@ class UsernamePasswordAuthenticationProviderTests {
         user.setPassword(PASSWORD_HASH);
         user.setStatus(UserStatus.NORMAL);
         when(userService.getByUsername("alice")).thenReturn(Optional.of(user));
+        lenient().when(userService.getAuthorities(USER_ID)).thenReturn(List.of());
         lenient().when(passwordEncoder.matches("secret", PASSWORD_HASH)).thenReturn(true);
     }
 
@@ -79,6 +82,20 @@ class UsernamePasswordAuthenticationProviderTests {
         assertThat(authentication.getPrincipal()).isEqualTo(USER_ID);
         assertThat(authentication.getCredentials()).isEqualTo(PASSWORD_HASH);
         verify(passwordEncoder).matches("secret", PASSWORD_HASH);
+    }
+
+    @Test
+    void populatesAuthoritiesFromTheAuthenticatedUser() {
+        when(userService.getAuthorities(USER_ID)).thenReturn(List.of(
+                new SimpleGrantedAuthority("ROLE_ADMIN"),
+                new SimpleGrantedAuthority("user:read")
+        ));
+
+        Authentication authentication = provider.authenticate(loginToken(false));
+
+        assertThat(authentication.getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_ADMIN", "user:read");
     }
 
     @Test

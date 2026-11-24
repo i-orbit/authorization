@@ -1,7 +1,9 @@
 package com.inmaytide.orbit.authorization.service;
 
 import com.inmaytide.orbit.authorization.domain.User;
+import org.springframework.security.core.GrantedAuthority;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -11,5 +13,7 @@ import java.util.Optional;
 public interface UserService {
 
     Optional<User> getByUsername(String username);
+
+    List<GrantedAuthority> getAuthorities(String userId);
 
 }
