@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -27,10 +29,13 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
+import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionException;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedCredentialsNotFoundException;
 import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationException;
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 import org.springframework.security.web.authentication.www.NonceExpiredException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -120,6 +125,16 @@ class ResponseWrapperAuthenticationEntryPointTests {
                         ErrorCode.AUTHENTICATION_REQUIRED),
                 Arguments.of(new PreAuthenticatedCredentialsNotFoundException("required"),
                         ErrorCode.AUTHENTICATION_REQUIRED),
+                Arguments.of(new AuthenticationServiceException("introspection rejected",
+                                new OAuth2IntrospectionException("introspection failed",
+                                        new RestClientResponseException("Unauthorized", HttpStatus.UNAUTHORIZED,
+                                                "Unauthorized", HttpHeaders.EMPTY, new byte[0],
+                                                StandardCharsets.UTF_8))),
+                        ErrorCode.AUTHENTICATION_SERVICE_REJECTED),
+                Arguments.of(new AuthenticationServiceException("introspection unreachable",
+                                new OAuth2IntrospectionException("connection refused",
+                                        new ResourceAccessException("Connection refused"))),
+                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new OAuth2AuthenticationException("invalid_request"),
                         ErrorCode.OAUTH2_AUTHENTICATION_ERROR),
                 Arguments.of(new InvalidBearerTokenException("invalid_token"),
