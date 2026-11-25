@@ -7,6 +7,7 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM;
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID;
 
 /**
  * Adds Orbit-specific claims to reference access tokens so Spring's standard
@@ -29,10 +30,17 @@ public class OrbitOAuth2TokenClaimsCustomizer implements OAuth2TokenCustomizer<O
 
         OAuth2Authorization authorization = context.getAuthorization();
         if (authorization != null) {
-            Object platform = authorization.getAttribute(PARAMETER_NAME_PLATFORM);
-            if (platform != null) {
-                context.getClaims().claim(PARAMETER_NAME_PLATFORM, platform);
-            }
+            addAuthorizationAttribute(context, authorization, PARAMETER_NAME_PLATFORM);
+            addAuthorizationAttribute(context, authorization, PARAMETER_NAME_TENANT_ID);
+        }
+    }
+
+    private static void addAuthorizationAttribute(OAuth2TokenClaimsContext context,
+                                                  OAuth2Authorization authorization,
+                                                  String name) {
+        Object value = authorization.getAttribute(name);
+        if (value != null) {
+            context.getClaims().claim(name, value);
         }
     }
 }

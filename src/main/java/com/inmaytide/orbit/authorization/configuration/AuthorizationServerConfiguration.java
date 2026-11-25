@@ -95,7 +95,13 @@ public class AuthorizationServerConfiguration {
                                                                       UserActivityService userActivityService,
                                                                       ObjectMapper objectMapper) throws Exception {
         final OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
+        final ResponseWrapperAuthenticationEntryPoint authenticationErrorHandler =
+                new ResponseWrapperAuthenticationEntryPoint(objectMapper);
         http.with(authorizationServerConfigurer, c -> {
+            c.clientAuthentication(endpoint ->
+                    endpoint.errorResponseHandler(authenticationErrorHandler));
+            c.tokenEndpoint(endpoint ->
+                    endpoint.errorResponseHandler(authenticationErrorHandler));
             c.tokenIntrospectionEndpoint(endpoint -> {
                 endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler(userActivityService));
             });
@@ -104,9 +110,7 @@ public class AuthorizationServerConfiguration {
         http.authorizeHttpRequests(authorize -> {
             authorize.anyRequest().authenticated();
         });
-        http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
-                new ResponseWrapperAuthenticationEntryPoint(objectMapper)
-        ));
+        http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationErrorHandler));
         http.csrf(AbstractHttpConfigurer::disable);
         http.formLogin(AbstractHttpConfigurer::disable);
         http.addFilterAfter(new LoginAuthenticationTokenFilter(tokenService), SecurityContextHolderFilter.class);

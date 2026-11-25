@@ -140,7 +140,8 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
     }
 
     private static OAuth2Authorization copyLoginAttributes(OAuth2Authorization authorization) {
-        if (authorization.getAttribute(PARAMETER_NAME_PLATFORM) != null) {
+        if (LOGIN_AUTHORIZATION_ATTRIBUTES.stream()
+                .allMatch(name -> authorization.getAttribute(name) != null)) {
             return authorization;
         }
 

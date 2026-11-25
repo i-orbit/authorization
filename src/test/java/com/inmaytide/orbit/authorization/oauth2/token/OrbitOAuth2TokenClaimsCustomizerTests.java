@@ -17,16 +17,21 @@ import static org.mockito.Mockito.when;
 class OrbitOAuth2TokenClaimsCustomizerTests {
 
     @Test
-    void addsPlatformUsernameAndAuthoritiesToAccessTokenClaims() {
+    void addsLoginAttributesUsernameAndAuthoritiesToAccessTokenClaims() {
         UsernamePasswordAuthenticationToken principal = new UsernamePasswordAuthenticationToken(
                 "user-1",
                 null,
-                Map.of(UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM, "WEB"),
+                Map.of(
+                        UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM, "WEB",
+                        UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID, "tenant-1"
+                ),
                 List.of(new SimpleGrantedAuthority("profile"))
         );
         OAuth2Authorization authorization = mock(OAuth2Authorization.class);
         when(authorization.getAttribute(UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM))
                 .thenReturn("WEB");
+        when(authorization.getAttribute(UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID))
+                .thenReturn("tenant-1");
         OAuth2TokenClaimsSet.Builder claims = OAuth2TokenClaimsSet.builder();
         OAuth2TokenClaimsContext context = mock(OAuth2TokenClaimsContext.class);
         when(context.getPrincipal()).thenReturn(principal);
@@ -38,6 +43,7 @@ class OrbitOAuth2TokenClaimsCustomizerTests {
         assertThat(claims.build().getClaims())
                 .containsEntry("username", "user-1")
                 .containsEntry("authorities", List.of("profile"))
-                .containsEntry("platform", "WEB");
+                .containsEntry("platform", "WEB")
+                .containsEntry("tenantId", "tenant-1");
     }
 }

@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -22,15 +23,16 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class ResponseWrapperAuthenticationEntryPoint implements AuthenticationEntryPoint {
+public class ResponseWrapperAuthenticationEntryPoint implements AuthenticationEntryPoint, AuthenticationFailureHandler {
 
     private final ObjectMapper objectMapper;
 
     @Override
     public void commence(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull AuthenticationException exception) throws IOException {
         ErrorCode errorCode = AuthenticationErrorCodeResolver.resolve(exception);
-        log.debug("Authentication entry point rejected request, {type: {}, errorCode: {}}", exception.getClass().getSimpleName(), errorCode.getCode(), exception);
+        log.debug("Authentication failed, {type: {}, errorCode: {}}", exception.getClass().getSimpleName(), errorCode.getCode(), exception);
 
+        response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         ResponseWrapper<Void> body = ResponseWrapper.failure(
@@ -39,6 +41,11 @@ public class ResponseWrapperAuthenticationEntryPoint implements AuthenticationEn
                 errorCode.getDescription()
         );
         response.getWriter().println(JsonUtils.toJSONString(objectMapper, body));
+    }
+
+    @Override
+    public void onAuthenticationFailure(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull AuthenticationException exception) throws IOException {
+        commence(request, response, exception);
     }
 
 }

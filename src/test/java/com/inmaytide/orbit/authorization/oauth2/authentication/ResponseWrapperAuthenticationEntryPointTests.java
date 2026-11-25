@@ -78,6 +78,17 @@ class ResponseWrapperAuthenticationEntryPointTests {
         assertThat(body.get("errorCode").asString()).isEqualTo(ErrorCode.SESSION_CONFLICT.getCode());
     }
 
+    @Test
+    void writesUnifiedResponseWhenUsedAsAuthenticationFailureHandler() throws Exception {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        entryPoint.onAuthenticationFailure(new MockHttpServletRequest(), response,
+                new OAuth2AuthenticationException("invalid_grant"));
+
+        assertThat(response.getStatus()).isEqualTo(ErrorCode.OAUTH2_AUTHENTICATION_ERROR.getHttpStatus().value());
+        JsonNode body = objectMapper.readTree(response.getContentAsString());
+        assertThat(body.get("errorCode").asString()).isEqualTo(ErrorCode.OAUTH2_AUTHENTICATION_ERROR.getCode());
+    }
+
     private MockHttpServletResponse commence(AuthenticationException exception) throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
         entryPoint.commence(new MockHttpServletRequest(), response, exception);
