@@ -1,6 +1,7 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.authorization.configuration.ErrorCode;
+import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
+import com.inmaytide.orbit.framework.security.domain.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

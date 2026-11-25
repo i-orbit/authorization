@@ -1,6 +1,5 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.authorization.configuration.ErrorCode;
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
@@ -9,6 +8,7 @@ import com.inmaytide.orbit.framework.core.utils.ApplicationContextHolder;
 import com.inmaytide.orbit.framework.log.Constants;
 import com.inmaytide.orbit.framework.log.OperationResult;
 import com.inmaytide.orbit.framework.log.domain.OperationLogDTO;
+import com.inmaytide.orbit.framework.security.domain.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;

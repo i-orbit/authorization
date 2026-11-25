@@ -1,8 +1,9 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.authorization.configuration.ErrorCode;
 import com.inmaytide.orbit.framework.core.domain.dto.ResponseWrapper;
 import com.inmaytide.orbit.framework.core.utils.JsonUtils;
+import com.inmaytide.orbit.framework.security.AuthenticationErrorCodeResolver;
+import com.inmaytide.orbit.framework.security.domain.ErrorCode;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

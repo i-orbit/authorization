@@ -3,8 +3,8 @@ package com.inmaytide.orbit.authorization.configuration;
 import com.inmaytide.orbit.authorization.oauth2.authentication.CustomizedUsernamePasswordAuthenticationFilter;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuthenticationTokenFilter;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuditLogPublisher;
-import com.inmaytide.orbit.authorization.oauth2.authentication.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
+import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,19 +45,14 @@ public class SecurityConfiguration {
                                     .anyRequest().authenticated();
                         }
                 )
-                .addFilterAt(new CustomizedUsernamePasswordAuthenticationFilter(
-                        authenticationManager, securityContextRepository, tokenService, properties, objectMapper,
-                        auditLogPublisher
-                ), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAt(new CustomizedUsernamePasswordAuthenticationFilter(authenticationManager, securityContextRepository, tokenService, properties, objectMapper, auditLogPublisher), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new LoginAuthenticationTokenFilter(tokenService), SecurityContextHolderFilter.class)
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
-                        new ResponseWrapperAuthenticationEntryPoint(objectMapper)
-                ))
+                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(new ResponseWrapperAuthenticationEntryPoint(objectMapper)))
                 .build();
     }
 

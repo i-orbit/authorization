@@ -2,13 +2,13 @@ package com.inmaytide.orbit.authorization.configuration;
 
 import com.inmaytide.orbit.authorization.oauth2.authentication.CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuthenticationTokenFilter;
-import com.inmaytide.orbit.authorization.oauth2.authentication.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationProvider;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
 import com.inmaytide.orbit.authorization.oauth2.token.OrbitOAuth2TokenClaimsCustomizer;
 import com.inmaytide.orbit.authorization.service.UserActivityService;
 import com.inmaytide.orbit.authorization.service.UserService;
+import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
 import com.inmaytide.orbit.framework.security.domain.Robot;
 import com.inmaytide.orbit.framework.security.domain.UserClientDetails;
@@ -17,7 +17,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -39,7 +38,6 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenClaimsContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -95,13 +93,10 @@ public class AuthorizationServerConfiguration {
                                                                       UserActivityService userActivityService,
                                                                       ObjectMapper objectMapper) throws Exception {
         final OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
-        final ResponseWrapperAuthenticationEntryPoint authenticationErrorHandler =
-                new ResponseWrapperAuthenticationEntryPoint(objectMapper);
+        final ResponseWrapperAuthenticationEntryPoint authenticationErrorHandler = new ResponseWrapperAuthenticationEntryPoint(objectMapper);
         http.with(authorizationServerConfigurer, c -> {
-            c.clientAuthentication(endpoint ->
-                    endpoint.errorResponseHandler(authenticationErrorHandler));
-            c.tokenEndpoint(endpoint ->
-                    endpoint.errorResponseHandler(authenticationErrorHandler));
+            c.clientAuthentication(endpoint -> endpoint.errorResponseHandler(authenticationErrorHandler));
+            c.tokenEndpoint(endpoint -> endpoint.errorResponseHandler(authenticationErrorHandler));
             c.tokenIntrospectionEndpoint(endpoint -> {
                 endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler(userActivityService));
             });

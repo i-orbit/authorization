@@ -1,6 +1,5 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.authorization.configuration.ErrorCode;
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.core.domain.AuthenticatedUser;
@@ -10,6 +9,7 @@ import com.inmaytide.orbit.framework.log.OperationResult;
 import com.inmaytide.orbit.framework.log.OperationType;
 import com.inmaytide.orbit.framework.log.domain.OperationLogBuilder;
 import com.inmaytide.orbit.framework.log.domain.OperationLogDTO;
+import com.inmaytide.orbit.framework.security.domain.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
