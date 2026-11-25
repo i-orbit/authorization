@@ -3,6 +3,7 @@ package com.inmaytide.orbit.authorization.configuration;
 import com.inmaytide.orbit.authorization.oauth2.authentication.CustomizedUsernamePasswordAuthenticationFilter;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuthenticationTokenFilter;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuditLogPublisher;
+import com.inmaytide.orbit.authorization.oauth2.authentication.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +55,9 @@ public class SecurityConfiguration {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
+                        new ResponseWrapperAuthenticationEntryPoint(objectMapper)
+                ))
                 .build();
     }
 

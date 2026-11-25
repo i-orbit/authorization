@@ -2,6 +2,7 @@ package com.inmaytide.orbit.authorization.configuration;
 
 import com.inmaytide.orbit.authorization.oauth2.authentication.CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuthenticationTokenFilter;
+import com.inmaytide.orbit.authorization.oauth2.authentication.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationProvider;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
@@ -42,7 +43,7 @@ import org.springframework.security.web.authentication.LoginUrlAuthenticationEnt
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -91,7 +92,8 @@ public class AuthorizationServerConfiguration {
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http,
                                                                       LoginAuthenticationTokenService tokenService,
                                                                       SecurityContextRepository securityContextRepository,
-                                                                      UserActivityService userActivityService) throws Exception {
+                                                                      UserActivityService userActivityService,
+                                                                      ObjectMapper objectMapper) throws Exception {
         final OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         http.with(authorizationServerConfigurer, c -> {
             c.tokenIntrospectionEndpoint(endpoint -> {
@@ -102,13 +104,9 @@ public class AuthorizationServerConfiguration {
         http.authorizeHttpRequests(authorize -> {
             authorize.anyRequest().authenticated();
         });
-        http.exceptionHandling(exceptions -> {
-                    exceptions.defaultAuthenticationEntryPointFor(
-                            new LoginUrlAuthenticationEntryPoint("http://127.0.0.1:3000/login"),
-                            new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
-                    );
-                }
-        );
+        http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
+                new ResponseWrapperAuthenticationEntryPoint(objectMapper)
+        ));
         http.csrf(AbstractHttpConfigurer::disable);
         http.formLogin(AbstractHttpConfigurer::disable);
         http.addFilterAfter(new LoginAuthenticationTokenFilter(tokenService), SecurityContextHolderFilter.class);

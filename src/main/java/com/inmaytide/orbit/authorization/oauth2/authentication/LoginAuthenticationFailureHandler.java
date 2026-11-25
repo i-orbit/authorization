@@ -9,24 +9,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AccountExpiredException;
-import org.springframework.security.authentication.AccountStatusException;
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
-import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.CredentialsExpiredException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.authentication.InternalAuthenticationServiceException;
-import org.springframework.security.authentication.LockedException;
-import org.springframework.security.authentication.ProviderNotFoundException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationException;
-import org.springframework.security.web.authentication.session.SessionAuthenticationException;
-import org.springframework.security.web.authentication.www.NonceExpiredException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -69,27 +54,13 @@ final class LoginAuthenticationFailureHandler implements AuthenticationFailureHa
     }
 
     ErrorCode resolveErrorCode(@Nonnull AuthenticationException exception) {
-        return switch (exception) {
-            case UsernameNotFoundException ignored when hideActualMessageOfUserLoginFailures ->
-                    ErrorCode.INVALID_CREDENTIALS;
-            case UsernameNotFoundException ignored -> ErrorCode.USER_NOT_FOUND;
-            case BadCredentialsException ignored -> ErrorCode.INVALID_CREDENTIALS;
-            case LockedException ignored -> ErrorCode.ACCOUNT_LOCKED;
-            case DisabledException ignored -> ErrorCode.ACCOUNT_DISABLED;
-            case AccountExpiredException ignored -> ErrorCode.ACCOUNT_EXPIRED;
-            case CredentialsExpiredException ignored -> ErrorCode.CREDENTIALS_EXPIRED;
-            case AccountStatusException ignored -> ErrorCode.ACCOUNT_STATUS_INVALID;
-            case SessionAuthenticationException ignored -> ErrorCode.SESSION_CONFLICT;
-            case InternalAuthenticationServiceException _,
-                 AuthenticationServiceException _,
-                 ProviderNotFoundException _ -> ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE;
-            case AuthenticationCredentialsNotFoundException _,
-                 InsufficientAuthenticationException _ -> ErrorCode.AUTHENTICATION_REQUIRED;
-            case OAuth2AuthenticationException ignored -> ErrorCode.OAUTH2_AUTHENTICATION_ERROR;
-            case RememberMeAuthenticationException _,
-                 NonceExpiredException _ -> ErrorCode.AUTHENTICATION_FAILED;
-            default -> ErrorCode.AUTHENTICATION_FAILED;
-        };
+        if (hideActualMessageOfUserLoginFailures && exception instanceof UsernameNotFoundException) {
+            return ErrorCode.INVALID_CREDENTIALS;
+        }
+        if (exception instanceof UsernameNotFoundException) {
+            return ErrorCode.USER_NOT_FOUND;
+        }
+        return AuthenticationErrorCodeResolver.resolve(exception);
     }
 
 }

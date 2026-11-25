@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM;
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID;
 
 /**
  * 基于 Redis 的 OAuth2 授权服务实现。<br/>
@@ -46,7 +47,7 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
 
     private static final long TTL_AUTHORIZATION = 30 * 60 * 1000;
 
-    private static final Set<String> LOGIN_AUTHORIZATION_ATTRIBUTES = Set.of(PARAMETER_NAME_PLATFORM);
+    private static final Set<String> LOGIN_AUTHORIZATION_ATTRIBUTES = Set.of(PARAMETER_NAME_PLATFORM, PARAMETER_NAME_TENANT_ID);
 
     private final Map<String, OAuth2Authorization> initializedAuthorizations = new ConcurrentHashMap<>();
 
