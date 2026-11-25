@@ -3,6 +3,7 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 import com.inmaytide.orbit.authorization.domain.LoginRequest;
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
+import com.inmaytide.orbit.authorization.service.TenantStatusService;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
 import com.inmaytide.orbit.framework.core.enums.UserStatus;
@@ -53,6 +54,9 @@ class UsernamePasswordAuthenticationProviderTests {
     @Mock
     private RedisOAuth2AuthorizationService authorizationService;
 
+    @Mock
+    private TenantStatusService tenantStatusService;
+
     private SecurityProperties properties;
 
     private UsernamePasswordAuthenticationProvider provider;
@@ -63,7 +67,7 @@ class UsernamePasswordAuthenticationProviderTests {
     void setUp() {
         properties = new SecurityProperties();
         provider = new UsernamePasswordAuthenticationProvider(
-                userService, passwordEncoder, properties, authorizationService);
+                userService, passwordEncoder, properties, authorizationService, tenantStatusService);
         user = new User();
         user.setId(USER_ID);
         user.setUsername("alice");

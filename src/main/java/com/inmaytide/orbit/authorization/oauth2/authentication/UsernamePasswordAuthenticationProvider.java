@@ -2,6 +2,7 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
+import com.inmaytide.orbit.authorization.service.TenantStatusService;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
 import com.inmaytide.orbit.framework.core.enums.UserStatus;
@@ -50,6 +51,8 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
 
     private final RedisOAuth2AuthorizationService authorizationService;
 
+    private final TenantStatusService tenantStatusService;
+
     @Override
     public @Nullable Authentication authenticate(@Nonnull Authentication authentication) throws AuthenticationException {
         UsernamePasswordAuthenticationToken token = (UsernamePasswordAuthenticationToken) authentication;
@@ -83,6 +86,7 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
         }
 
         validateUserStatus(user);
+        tenantStatusService.validateForLogin(user);
         validateConcurrentLogin(user, token.getAdditionalParameters());
 
         Map<String, Object> additionalParameters = new HashMap<>(token.getAdditionalParameters());

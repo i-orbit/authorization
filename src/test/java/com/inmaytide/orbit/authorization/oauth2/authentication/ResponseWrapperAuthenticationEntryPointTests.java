@@ -2,6 +2,7 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
 import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.TenantStatusException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -113,6 +114,10 @@ class ResponseWrapperAuthenticationEntryPointTests {
                 Arguments.of(new AccountStatusException("invalid") {
                 }, ErrorCode.ACCOUNT_STATUS_INVALID),
                 Arguments.of(new SessionAuthenticationException("conflict"), ErrorCode.SESSION_CONFLICT),
+                Arguments.of(new TenantStatusException(ErrorCode.TENANT_DISABLED, "disabled"),
+                        ErrorCode.TENANT_DISABLED),
+                Arguments.of(new TenantStatusException(ErrorCode.TENANT_EXPIRED, "expired"),
+                        ErrorCode.TENANT_EXPIRED),
                 Arguments.of(new InternalAuthenticationServiceException("unavailable"),
                         ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new AuthenticationServiceException("unavailable"),

@@ -6,6 +6,7 @@ import com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordA
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
 import com.inmaytide.orbit.authorization.oauth2.token.OrbitOAuth2TokenClaimsCustomizer;
+import com.inmaytide.orbit.authorization.service.TenantStatusService;
 import com.inmaytide.orbit.authorization.service.UserActivityService;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
@@ -74,9 +75,10 @@ public class AuthorizationServerConfiguration {
     public AuthenticationManager authenticationManager(UserService userService,
                                                        PasswordEncoder passwordEncoder,
                                                        SecurityProperties properties,
-                                                       RedisOAuth2AuthorizationService authorizationService) {
+                                                       RedisOAuth2AuthorizationService authorizationService,
+                                                       TenantStatusService tenantStatusService) {
         UsernamePasswordAuthenticationProvider provider = new UsernamePasswordAuthenticationProvider(
-                userService, passwordEncoder, properties, authorizationService);
+                userService, passwordEncoder, properties, authorizationService, tenantStatusService);
         return new ProviderManager(provider);
     }
 
@@ -91,6 +93,7 @@ public class AuthorizationServerConfiguration {
                                                                       LoginAuthenticationTokenService tokenService,
                                                                       SecurityContextRepository securityContextRepository,
                                                                       UserActivityService userActivityService,
+                                                                      TenantStatusService tenantStatusService,
                                                                       ObjectMapper objectMapper) throws Exception {
         final OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         final ResponseWrapperAuthenticationEntryPoint authenticationErrorHandler = new ResponseWrapperAuthenticationEntryPoint(objectMapper);
@@ -98,7 +101,7 @@ public class AuthorizationServerConfiguration {
             c.clientAuthentication(endpoint -> endpoint.errorResponseHandler(authenticationErrorHandler));
             c.tokenEndpoint(endpoint -> endpoint.errorResponseHandler(authenticationErrorHandler));
             c.tokenIntrospectionEndpoint(endpoint -> {
-                endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler(userActivityService));
+                endpoint.introspectionResponseHandler(new CustomizedOAuth2TokenIntrospectionAuthenticationSuccessHandler(userActivityService, tenantStatusService));
             });
         });
         http.securityMatcher(authorizationServerConfigurer.getEndpointsMatcher());
