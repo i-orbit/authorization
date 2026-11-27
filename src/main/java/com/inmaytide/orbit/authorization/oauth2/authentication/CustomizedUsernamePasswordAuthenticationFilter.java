@@ -2,16 +2,16 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.authorization.domain.LoginRequest;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
-import com.inmaytide.orbit.framework.core.domain.dto.ResponseWrapper;
 import com.inmaytide.orbit.framework.core.utils.JsonUtils;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -72,17 +72,23 @@ public class CustomizedUsernamePasswordAuthenticationFilter extends AbstractAuth
 
         @Override
         public void onAuthenticationSuccess(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull Authentication authentication) throws IOException, ServletException {
-            ((UsernamePasswordAuthenticationToken) authentication).eraseCredentials();
+            UsernamePasswordAuthenticationToken loginAuthentication = (UsernamePasswordAuthenticationToken) authentication;
+            loginAuthentication.eraseCredentials();
+            // 验证码已消费，不再写入登录会话
+            loginAuthentication.getAdditionalParameters().remove(UsernamePasswordAuthenticationToken.PARAMETER_NAME_CAPTCHA_ID);
+            loginAuthentication.getAdditionalParameters().remove(UsernamePasswordAuthenticationToken.PARAMETER_NAME_CAPTCHA_X);
             try {
-                String accessToken = tokenService.store(authentication);
+                String sessionToken = tokenService.store(authentication);
+                response.addHeader(HttpHeaders.SET_COOKIE,
+                        LoginSessionCookie.create(request, sessionToken).toString());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-                Map<String, Object> data = Map.of("accessToken", accessToken, "tokenType", "Bearer");
-                response.getWriter().println(JsonUtils.toJSONString(ResponseWrapper.success(data)));
+                Map<String, Object> data = Map.of("authenticated", true);
+                response.getWriter().println(JsonUtils.toJSONString(data));
                 auditLogPublisher.success(request, authentication);
 
             } catch (RuntimeException e) {
-                auditLogPublisher.failure(request, ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE);
+                auditLogPublisher.failure(request, SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE);
                 throw e;
             }
         }

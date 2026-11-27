@@ -9,7 +9,7 @@ import com.inmaytide.orbit.framework.log.OperationResult;
 import com.inmaytide.orbit.framework.log.OperationType;
 import com.inmaytide.orbit.framework.log.domain.OperationLogBuilder;
 import com.inmaytide.orbit.framework.log.domain.OperationLogDTO;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +55,7 @@ public class LoginAuditLogPublisher {
         }
     }
 
-    public void failure(HttpServletRequest request, ErrorCode errorCode) {
+    public void failure(HttpServletRequest request, SecurityErrorCode errorCode) {
         try {
             publish(buildFailureLog(request, errorCode));
         } catch (RuntimeException e) {
@@ -79,7 +79,7 @@ public class LoginAuditLogPublisher {
         return buildLog(request, user, userId, OperationResult.SUCCESS, OPERATION_SUCCESS, null);
     }
 
-    OperationLogDTO buildFailureLog(HttpServletRequest request, ErrorCode errorCode) {
+    OperationLogDTO buildFailureLog(HttpServletRequest request, SecurityErrorCode errorCode) {
         AttemptedUser attemptedUser = findAttemptedUser(request);
         String errorDescription = errorCode.getCode() + ", " + errorCode.getDescription();
         return buildLog(

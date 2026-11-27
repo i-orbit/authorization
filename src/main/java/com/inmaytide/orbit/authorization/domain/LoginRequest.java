@@ -31,6 +31,10 @@ public class LoginRequest implements Serializable {
     @JsonAlias({"forceReplacement", "forceReplacemnt"})
     private boolean forcedReplacement = false;
 
+    private String captchaId;
+
+    private Integer captchaX;
+
     public static LoginRequest withHttpServletRequest(HttpServletRequest request) {
         try {
             if (request.getContentType() != null && request.getContentType().contains(MediaType.APPLICATION_JSON_VALUE)) {
@@ -51,6 +55,15 @@ public class LoginRequest implements Serializable {
                     request.getParameter("forceReplacemnt")
             );
             inst.setForcedReplacement(isTrue(forcedReplacement));
+            inst.setCaptchaId(request.getParameter("captchaId"));
+            String captchaX = request.getParameter("captchaX");
+            if (StringUtils.isNotBlank(captchaX)) {
+                try {
+                    inst.setCaptchaX(Integer.valueOf(captchaX.trim()));
+                } catch (NumberFormatException ignored) {
+                    // 保持为 null，由验证码校验统一拒绝
+                }
+            }
             return inst;
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to parse login request", e);

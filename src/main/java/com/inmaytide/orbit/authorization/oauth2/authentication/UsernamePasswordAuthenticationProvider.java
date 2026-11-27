@@ -2,6 +2,7 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
+import com.inmaytide.orbit.authorization.service.CaptchaService;
 import com.inmaytide.orbit.authorization.service.TenantStatusService;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
@@ -27,6 +28,8 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 
 import java.util.*;
 
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_CAPTCHA_ID;
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_CAPTCHA_X;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_FORCED_REPLACEMENT;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID;
@@ -53,6 +56,8 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
 
     private final TenantStatusService tenantStatusService;
 
+    private final CaptchaService captchaService;
+
     @Override
     public @Nullable Authentication authenticate(@Nonnull Authentication authentication) throws AuthenticationException {
         UsernamePasswordAuthenticationToken token = (UsernamePasswordAuthenticationToken) authentication;
@@ -60,6 +65,7 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
         if (StringUtils.isBlank(rawUsername)) {
             throw new BadCredentialsException("Username must not be empty");
         }
+        verifyCaptcha(token.getAdditionalParameters());
         boolean withOutPassword = token.getUsername().endsWith(FLAG_LOGIN_WITHOUT_PASSWORD);
         String username = withOutPassword ? Strings.CS.removeEnd(rawUsername, FLAG_LOGIN_WITHOUT_PASSWORD) : rawUsername;
         String password = token.getPassword();
@@ -98,6 +104,25 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
                 additionalParameters,
                 userService.getAuthorities(user.getId())
         );
+    }
+
+    private void verifyCaptcha(Map<String, Object> additionalParameters) {
+        String captchaId = additionalParameters.get(PARAMETER_NAME_CAPTCHA_ID) instanceof String value ? value : null;
+        Integer captchaX = switch (additionalParameters.get(PARAMETER_NAME_CAPTCHA_X)) {
+            case Number value -> value.intValue();
+            case String value when StringUtils.isNotBlank(value) -> {
+                try {
+                    yield Integer.valueOf(value.trim());
+                } catch (NumberFormatException e) {
+                    yield null;
+                }
+            }
+            case null, default -> null;
+        };
+        if (!captchaService.verify(captchaId, captchaX)) {
+            log.debug("Captcha verification failed");
+            throw new CaptchaVerificationException("Captcha verification failed");
+        }
     }
 
     private void validateUserStatus(User user) {
@@ -141,7 +166,7 @@ public class UsernamePasswordAuthenticationProvider implements AuthenticationPro
         }
 
         if (isForceReplacement(additionalParameters.get(PARAMETER_NAME_FORCED_REPLACEMENT))) {
-            authorizations.forEach(authorizationService::remove);
+            authorizations.forEach(authorizationService::removeAndInvalidateSession);
             log.info("Replacing existing login, {userId: {}, platform: {}, replacedSessions: {}}",
                     user.getId(), platform, authorizations.size());
             return;

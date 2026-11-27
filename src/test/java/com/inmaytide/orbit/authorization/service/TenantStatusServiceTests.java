@@ -4,7 +4,7 @@ import com.inmaytide.orbit.authorization.domain.Tenant;
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.repository.TenantRepository;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import com.inmaytide.orbit.framework.security.domain.TenantStatusException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,7 @@ class TenantStatusServiceTests {
 
         assertThatThrownBy(() -> service.validateForLogin(user))
                 .isInstanceOfSatisfying(TenantStatusException.class,
-                        ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.TENANT_NOT_FOUND));
+                        ex -> assertThat(ex.getErrorCode()).isEqualTo(SecurityErrorCode.TENANT_NOT_FOUND));
         assertThat(service.isActive(TENANT_ID)).isFalse();
     }
 
@@ -65,7 +65,7 @@ class TenantStatusServiceTests {
 
         assertThatThrownBy(() -> service.validateForLogin(user))
                 .isInstanceOfSatisfying(TenantStatusException.class,
-                        ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.TENANT_DISABLED));
+                        ex -> assertThat(ex.getErrorCode()).isEqualTo(SecurityErrorCode.TENANT_DISABLED));
     }
 
     @Test
@@ -75,7 +75,7 @@ class TenantStatusServiceTests {
 
         assertThatThrownBy(() -> service.validateForLogin(user))
                 .isInstanceOfSatisfying(TenantStatusException.class,
-                        ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.TENANT_EXPIRED));
+                        ex -> assertThat(ex.getErrorCode()).isEqualTo(SecurityErrorCode.TENANT_EXPIRED));
     }
 
     @Test
@@ -84,7 +84,7 @@ class TenantStatusServiceTests {
 
         assertThatThrownBy(() -> service.validateForLogin(user))
                 .isInstanceOfSatisfying(TenantStatusException.class,
-                        ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.TENANT_REQUIRED));
+                        ex -> assertThat(ex.getErrorCode()).isEqualTo(SecurityErrorCode.TENANT_REQUIRED));
     }
 
     @Test

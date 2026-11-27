@@ -1,22 +1,19 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.framework.core.domain.dto.ResponseWrapper;
-import com.inmaytide.orbit.framework.core.utils.JsonUtils;
 import com.inmaytide.orbit.framework.security.AuthenticationErrorCodeResolver;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.ProblemDetailsWriter;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Converts Spring Security authentication failures into the Orbit API error format.
@@ -43,23 +40,22 @@ final class LoginAuthenticationFailureHandler implements AuthenticationFailureHa
 
     @Override
     public void onAuthenticationFailure(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull AuthenticationException exception) throws IOException, ServletException {
-        ErrorCode errorCode = resolveErrorCode(exception);
+        SecurityErrorCode errorCode = resolveErrorCode(exception);
         log.debug("Login authentication failed, {type: {}, errorCode: {}}", exception.getClass().getSimpleName(), errorCode.getCode(), exception);
 
-        response.setStatus(errorCode.getHttpStatus().value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        ResponseWrapper<Void> body = ResponseWrapper.failure(errorCode.getHttpStatus().value(), errorCode.getCode(), errorCode.getDescription());
-        response.getWriter().println(JsonUtils.toJSONString(objectMapper, body));
+        ProblemDetailsWriter.write(request, response, objectMapper, errorCode);
         auditLogPublisher.failure(request, errorCode);
     }
 
-    ErrorCode resolveErrorCode(@Nonnull AuthenticationException exception) {
+    SecurityErrorCode resolveErrorCode(@Nonnull AuthenticationException exception) {
+        if (exception instanceof CaptchaVerificationException) {
+            return SecurityErrorCode.CAPTCHA_INVALID;
+        }
         if (hideActualMessageOfUserLoginFailures && exception instanceof UsernameNotFoundException) {
-            return ErrorCode.INVALID_CREDENTIALS;
+            return SecurityErrorCode.INVALID_CREDENTIALS;
         }
         if (exception instanceof UsernameNotFoundException) {
-            return ErrorCode.USER_NOT_FOUND;
+            return SecurityErrorCode.USER_NOT_FOUND;
         }
         return AuthenticationErrorCodeResolver.resolve(exception);
     }

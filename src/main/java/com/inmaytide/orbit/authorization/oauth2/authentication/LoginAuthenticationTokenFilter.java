@@ -36,13 +36,22 @@ public class LoginAuthenticationTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@Nonnull HttpServletRequest request,
                                     @Nonnull HttpServletResponse response,
                                     @Nonnull FilterChain filterChain) throws ServletException, IOException {
-        String token = resolveToken(request);
+        String headerToken = resolveBearerToken(request);
+        String cookieToken = LoginSessionCookie.resolve(request);
+        String token = headerToken != null ? headerToken : cookieToken;
         if (StringUtils.hasText(token)) {
             Authentication authentication = tokenService.find(token);
-            if (authentication instanceof UsernamePasswordAuthenticationToken && authentication.isAuthenticated()) {
+            if (authentication instanceof UsernamePasswordAuthenticationToken loginAuthentication
+                    && authentication.isAuthenticated()) {
+                loginAuthentication.setDetails(token);
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
-                context.setAuthentication(authentication);
+                context.setAuthentication(loginAuthentication);
                 SecurityContextHolder.setContext(context);
+                tokenService.renew(token);
+                if (headerToken == null && cookieToken != null) {
+                    response.addHeader(HttpHeaders.SET_COOKIE,
+                            LoginSessionCookie.create(request, token).toString());
+                }
                 log.debug("Login authentication token applied to the request SecurityContext");
             } else {
                 log.debug("Login authentication token is invalid or expired");
@@ -51,7 +60,7 @@ public class LoginAuthenticationTokenFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private @Nullable String resolveToken(HttpServletRequest request) {
+    private @Nullable String resolveBearerToken(HttpServletRequest request) {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.startsWithIgnoreCase(authorization, BEARER_PREFIX)) {
             return null;

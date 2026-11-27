@@ -29,6 +29,12 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
 
     public static final String PARAMETER_NAME_TENANT_ID = "tenantId";
 
+    public static final String PARAMETER_NAME_LOGIN_SESSION_TOKEN = "loginSessionToken";
+
+    public static final String PARAMETER_NAME_CAPTCHA_ID = "captchaId";
+
+    public static final String PARAMETER_NAME_CAPTCHA_X = "captchaX";
+
     private final String username;
 
     private String password;
@@ -42,6 +48,8 @@ public class UsernamePasswordAuthenticationToken extends AbstractAuthenticationT
         this.additionalParameters = new HashMap<>();
         this.additionalParameters.put(PARAMETER_NAME_PLATFORM, body.getPlatform() == null ? null : body.getPlatform().name());
         this.additionalParameters.put(PARAMETER_NAME_FORCED_REPLACEMENT, body.isForcedReplacement());
+        this.additionalParameters.put(PARAMETER_NAME_CAPTCHA_ID, body.getCaptchaId());
+        this.additionalParameters.put(PARAMETER_NAME_CAPTCHA_X, body.getCaptchaX());
         setAuthenticated(false);
     }
 

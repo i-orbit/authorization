@@ -4,7 +4,8 @@ import com.inmaytide.orbit.authorization.oauth2.authentication.CustomizedUsernam
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuthenticationTokenFilter;
 import com.inmaytide.orbit.authorization.oauth2.authentication.LoginAuditLogPublisher;
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
-import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
+import com.inmaytide.orbit.framework.security.ProblemDetailsAccessDeniedHandler;
+import com.inmaytide.orbit.framework.security.ProblemDetailsAuthenticationEntryPoint;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,6 +43,8 @@ public class SecurityConfiguration {
                             authorize
                                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                                     .requestMatchers(HttpMethod.POST, "/login").permitAll()
+                                    .requestMatchers(HttpMethod.POST, "/logout").permitAll()
+                                    .requestMatchers(HttpMethod.GET, "/captcha").permitAll()
                                     .anyRequest().authenticated();
                         }
                 )
@@ -52,7 +55,9 @@ public class SecurityConfiguration {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(new ResponseWrapperAuthenticationEntryPoint(objectMapper)))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(new ProblemDetailsAuthenticationEntryPoint(objectMapper))
+                        .accessDeniedHandler(new ProblemDetailsAccessDeniedHandler(objectMapper)))
                 .build();
     }
 

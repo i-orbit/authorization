@@ -2,6 +2,7 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 
 import com.inmaytide.orbit.authorization.oauth2.service.LoginAuthenticationTokenService;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -102,6 +103,28 @@ class LoginAuthenticationTokenFilterTests {
         }
 
         assertThat(authorizationPrincipal.get()).isSameAs(authentication);
+    }
+
+    @Test
+    void restoresAuthenticationFromLoginSessionCookieAndRenewsIt() throws Exception {
+        Authentication authentication = authentication();
+        when(tokenService.find("cookie-token")).thenReturn(authentication);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie(LoginSessionCookie.NAME, "cookie-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        AtomicReference<Authentication> requestAuthentication = new AtomicReference<>();
+        FilterChain filterChain = (req, res) -> requestAuthentication.set(
+                SecurityContextHolder.getContext().getAuthentication());
+
+        filter.doFilter(request, response, filterChain);
+
+        assertThat(requestAuthentication.get()).isSameAs(authentication);
+        verify(tokenService).renew("cookie-token");
+        assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
+                .contains(LoginSessionCookie.NAME + "=cookie-token")
+                .contains("HttpOnly")
+                .contains("SameSite=Lax");
     }
 
     @Test

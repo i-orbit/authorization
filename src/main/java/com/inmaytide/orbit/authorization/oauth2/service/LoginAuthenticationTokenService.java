@@ -1,6 +1,7 @@
 package com.inmaytide.orbit.authorization.oauth2.service;
 
 import com.inmaytide.orbit.framework.security.SecurityProperties;
+import com.inmaytide.orbit.framework.security.domain.AuthorizationProperties;
 import jakarta.annotation.Nonnull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +38,7 @@ public class LoginAuthenticationTokenService {
 
     @Autowired
     public LoginAuthenticationTokenService(RedisConnectionFactory connectionFactory, SecurityProperties properties) {
-        this(createRedisTemplate(connectionFactory), Duration.ofSeconds(
-                Math.max(1, properties.getUserClient().getAccessTokenValiditySeconds())));
+        this(createRedisTemplate(connectionFactory), Duration.ofSeconds(Math.max(1, properties.getAuthorization().getSessionIdleTimeoutSeconds())));
     }
 
     LoginAuthenticationTokenService(RedisTemplate<String, Authentication> redisTemplate, Duration validity) {
@@ -56,6 +56,23 @@ public class LoginAuthenticationTokenService {
     public @Nullable Authentication find(@Nonnull String token) {
         Assert.hasText(token, "token cannot be empty");
         return redisTemplate.opsForValue().get(buildCacheKey(token));
+    }
+
+    /**
+     * 滑动续期：每次使用登录会话时重新计算过期时间。
+     */
+    public void renew(@Nonnull String token) {
+        Assert.hasText(token, "token cannot be empty");
+        redisTemplate.expire(buildCacheKey(token), validity);
+    }
+
+    public void remove(@Nonnull String token) {
+        Assert.hasText(token, "token cannot be empty");
+        redisTemplate.delete(buildCacheKey(token));
+    }
+
+    public Duration getValidity() {
+        return validity;
     }
 
     private static String buildCacheKey(String token) {

@@ -4,7 +4,7 @@ import com.inmaytide.orbit.authorization.domain.Tenant;
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.repository.TenantRepository;
 import com.inmaytide.orbit.framework.security.SecurityProperties;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import com.inmaytide.orbit.framework.security.domain.TenantStatusException;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -33,17 +33,17 @@ public class TenantStatusService {
             if (isSuperAdministrator(user.getUsername())) {
                 return;
             }
-            throw new TenantStatusException(ErrorCode.TENANT_REQUIRED, "User is not bound to a tenant");
+            throw new TenantStatusException(SecurityErrorCode.TENANT_REQUIRED, "User is not bound to a tenant");
         }
         Tenant tenant = repository.findByIdAndDeleted(tenantId, 0).orElse(null);
         if (tenant == null) {
-            throw new TenantStatusException(ErrorCode.TENANT_NOT_FOUND, "Tenant not found");
+            throw new TenantStatusException(SecurityErrorCode.TENANT_NOT_FOUND, "Tenant not found");
         }
         if (tenant.getStatus() == null || tenant.getStatus() != 1) {
-            throw new TenantStatusException(ErrorCode.TENANT_DISABLED, "Tenant is disabled");
+            throw new TenantStatusException(SecurityErrorCode.TENANT_DISABLED, "Tenant is disabled");
         }
         if (tenant.getExpiredAt() != null && !tenant.getExpiredAt().isAfter(Instant.now())) {
-            throw new TenantStatusException(ErrorCode.TENANT_EXPIRED, "Tenant license has expired");
+            throw new TenantStatusException(SecurityErrorCode.TENANT_EXPIRED, "Tenant license has expired");
         }
     }
 

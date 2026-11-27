@@ -48,13 +48,13 @@ class LoginAuthenticationTokenServiceTests {
         verify(values).set(key.capture(), same(authentication), eq(VALIDITY));
         assertThat(token).isNotBlank();
         assertThat(key.getValue())
-                .isEqualTo("orbit:security:authentication:" + token);
+                .isEqualTo("orbit:authentication:" + token);
     }
 
     @Test
     void findsAuthenticationByToken() {
         Authentication authentication = authentication();
-        when(values.get("orbit:security:authentication:login-token")).thenReturn(authentication);
+        when(values.get("orbit:authentication:login-token")).thenReturn(authentication);
 
         assertThat(tokenService.find("login-token")).isSameAs(authentication);
     }

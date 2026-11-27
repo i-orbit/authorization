@@ -1,12 +1,14 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AccountExpiredException;
@@ -37,7 +39,9 @@ import static org.mockito.Mockito.mock;
 
 class LoginAuthenticationFailureHandlerTests {
 
-    private final JsonMapper objectMapper = JsonMapper.builder().build();
+    private final JsonMapper objectMapper = JsonMapper.builder()
+            .addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+            .build();
 
     private final LoginAuditLogPublisher auditLogPublisher = mock(LoginAuditLogPublisher.class);
 
@@ -50,7 +54,7 @@ class LoginAuthenticationFailureHandlerTests {
 
     @ParameterizedTest
     @MethodSource("authenticationFailures")
-    void resolvesKnownAuthenticationFailures(AuthenticationException exception, ErrorCode expected) {
+    void resolvesKnownAuthenticationFailures(AuthenticationException exception, SecurityErrorCode expected) {
         assertThat(handler.resolveErrorCode(exception)).isEqualTo(expected);
     }
 
@@ -60,23 +64,24 @@ class LoginAuthenticationFailureHandlerTests {
 
         MockHttpServletResponse response = handle(new UsernameNotFoundException("not found"));
 
-        assertThat(response.getStatus()).isEqualTo(ErrorCode.USER_NOT_FOUND.getHttpStatus().value());
+        assertThat(response.getStatus()).isEqualTo(SecurityErrorCode.USER_NOT_FOUND.getHttpStatus().value());
         JsonNode body = objectMapper.readTree(response.getContentAsString());
-        assertThat(body.get("errorCode").asString()).isEqualTo(ErrorCode.USER_NOT_FOUND.getCode());
+        assertThat(body.get("code").asString()).isEqualTo(SecurityErrorCode.USER_NOT_FOUND.getCode());
     }
 
     @Test
-    void writesMappedErrorAsJsonWithMatchingHttpStatus() throws Exception {
+    void writesMappedErrorAsProblemDetailsWithMatchingHttpStatus() throws Exception {
         MockHttpServletResponse response = handle(new SessionAuthenticationException("already logged in"));
 
-        assertThat(response.getStatus()).isEqualTo(ErrorCode.SESSION_CONFLICT.getHttpStatus().value());
-        assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(response.getStatus()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getHttpStatus().value());
+        assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         assertThat(response.getCharacterEncoding()).isEqualTo(StandardCharsets.UTF_8.name());
 
         JsonNode body = objectMapper.readTree(response.getContentAsString());
-        assertThat(body.get("status").asInt()).isEqualTo(ErrorCode.SESSION_CONFLICT.getHttpStatus().value());
-        assertThat(body.get("errorCode").asString()).isEqualTo(ErrorCode.SESSION_CONFLICT.getCode());
-        assertThat(body.get("description").asString()).isEqualTo(ErrorCode.SESSION_CONFLICT.getDescription());
+        assertThat(body.get("status").asInt()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getHttpStatus().value());
+        assertThat(body.get("title").asString()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getHttpStatus().getReasonPhrase());
+        assertThat(body.get("detail").asString()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getDescription());
+        assertThat(body.get("code").asString()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getCode());
     }
 
     private MockHttpServletResponse handle(AuthenticationException exception) throws Exception {
@@ -87,32 +92,33 @@ class LoginAuthenticationFailureHandlerTests {
 
     private static Stream<Arguments> authenticationFailures() {
         return Stream.of(
-                Arguments.of(new UsernameNotFoundException("not found"), ErrorCode.INVALID_CREDENTIALS),
-                Arguments.of(new BadCredentialsException("bad credentials"), ErrorCode.INVALID_CREDENTIALS),
-                Arguments.of(new LockedException("locked"), ErrorCode.ACCOUNT_LOCKED),
-                Arguments.of(new DisabledException("disabled"), ErrorCode.ACCOUNT_DISABLED),
-                Arguments.of(new AccountExpiredException("expired"), ErrorCode.ACCOUNT_EXPIRED),
-                Arguments.of(new CredentialsExpiredException("expired"), ErrorCode.CREDENTIALS_EXPIRED),
+                Arguments.of(new UsernameNotFoundException("not found"), SecurityErrorCode.INVALID_CREDENTIALS),
+                Arguments.of(new BadCredentialsException("bad credentials"), SecurityErrorCode.INVALID_CREDENTIALS),
+                Arguments.of(new CaptchaVerificationException("captcha"), SecurityErrorCode.CAPTCHA_INVALID),
+                Arguments.of(new LockedException("locked"), SecurityErrorCode.ACCOUNT_LOCKED),
+                Arguments.of(new DisabledException("disabled"), SecurityErrorCode.ACCOUNT_DISABLED),
+                Arguments.of(new AccountExpiredException("expired"), SecurityErrorCode.ACCOUNT_EXPIRED),
+                Arguments.of(new CredentialsExpiredException("expired"), SecurityErrorCode.CREDENTIALS_EXPIRED),
                 Arguments.of(new AccountStatusException("invalid") {
-                }, ErrorCode.ACCOUNT_STATUS_INVALID),
-                Arguments.of(new SessionAuthenticationException("conflict"), ErrorCode.SESSION_CONFLICT),
+                }, SecurityErrorCode.ACCOUNT_STATUS_INVALID),
+                Arguments.of(new SessionAuthenticationException("conflict"), SecurityErrorCode.SESSION_CONFLICT),
                 Arguments.of(new InternalAuthenticationServiceException("unavailable"),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new AuthenticationServiceException("unavailable"),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new ProviderNotFoundException("unavailable"),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new AuthenticationCredentialsNotFoundException("required"),
-                        ErrorCode.AUTHENTICATION_REQUIRED),
+                        SecurityErrorCode.AUTHENTICATION_REQUIRED),
                 Arguments.of(new InsufficientAuthenticationException("required"),
-                        ErrorCode.AUTHENTICATION_REQUIRED),
+                        SecurityErrorCode.AUTHENTICATION_REQUIRED),
                 Arguments.of(new OAuth2AuthenticationException("invalid_request"),
-                        ErrorCode.OAUTH2_AUTHENTICATION_ERROR),
+                        SecurityErrorCode.OAUTH2_AUTHENTICATION_ERROR),
                 Arguments.of(new RememberMeAuthenticationException("failed"),
-                        ErrorCode.AUTHENTICATION_FAILED),
-                Arguments.of(new NonceExpiredException("expired"), ErrorCode.AUTHENTICATION_FAILED),
+                        SecurityErrorCode.AUTHENTICATION_FAILED),
+                Arguments.of(new NonceExpiredException("expired"), SecurityErrorCode.AUTHENTICATION_FAILED),
                 Arguments.of(new AuthenticationException("unknown") {
-                }, ErrorCode.AUTHENTICATION_FAILED)
+                }, SecurityErrorCode.AUTHENTICATION_FAILED)
         );
     }
 }

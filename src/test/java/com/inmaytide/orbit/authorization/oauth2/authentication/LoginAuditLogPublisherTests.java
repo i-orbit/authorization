@@ -8,7 +8,7 @@ import com.inmaytide.orbit.framework.core.utils.ApplicationContextHolder;
 import com.inmaytide.orbit.framework.log.Constants;
 import com.inmaytide.orbit.framework.log.OperationResult;
 import com.inmaytide.orbit.framework.log.domain.OperationLogDTO;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -77,7 +77,7 @@ class LoginAuditLogPublisherTests {
         when(userService.getByUsername("alice")).thenReturn(Optional.of(user));
 
         OperationLogDTO result = withApplicationName(
-                () -> publisher.buildFailureLog(loginRequest(), ErrorCode.INVALID_CREDENTIALS)
+                () -> publisher.buildFailureLog(loginRequest(), SecurityErrorCode.INVALID_CREDENTIALS)
         );
 
         assertThat(result.getTenantId()).isEqualTo("tenant-1");

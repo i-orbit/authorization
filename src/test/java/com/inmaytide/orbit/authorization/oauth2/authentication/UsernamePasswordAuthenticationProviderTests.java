@@ -3,6 +3,7 @@ package com.inmaytide.orbit.authorization.oauth2.authentication;
 import com.inmaytide.orbit.authorization.domain.LoginRequest;
 import com.inmaytide.orbit.authorization.domain.User;
 import com.inmaytide.orbit.authorization.oauth2.service.RedisOAuth2AuthorizationService;
+import com.inmaytide.orbit.authorization.service.CaptchaService;
 import com.inmaytide.orbit.authorization.service.TenantStatusService;
 import com.inmaytide.orbit.authorization.service.UserService;
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
@@ -33,9 +34,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,6 +60,9 @@ class UsernamePasswordAuthenticationProviderTests {
     @Mock
     private TenantStatusService tenantStatusService;
 
+    @Mock
+    private CaptchaService captchaService;
+
     private SecurityProperties properties;
 
     private UsernamePasswordAuthenticationProvider provider;
@@ -67,13 +73,14 @@ class UsernamePasswordAuthenticationProviderTests {
     void setUp() {
         properties = new SecurityProperties();
         provider = new UsernamePasswordAuthenticationProvider(
-                userService, passwordEncoder, properties, authorizationService, tenantStatusService);
+                userService, passwordEncoder, properties, authorizationService, tenantStatusService, captchaService);
         user = new User();
         user.setId(USER_ID);
         user.setUsername("alice");
         user.setPassword(PASSWORD_HASH);
         user.setStatus(UserStatus.NORMAL);
-        when(userService.getByUsername("alice")).thenReturn(Optional.of(user));
+        lenient().when(captchaService.verify(nullable(String.class), nullable(Integer.class))).thenReturn(true);
+        lenient().when(userService.getByUsername("alice")).thenReturn(Optional.of(user));
         lenient().when(userService.getAuthorities(USER_ID)).thenReturn(List.of());
         lenient().when(passwordEncoder.matches("secret", PASSWORD_HASH)).thenReturn(true);
     }
@@ -123,6 +130,16 @@ class UsernamePasswordAuthenticationProviderTests {
     }
 
     @Test
+    void rejectsLoginWhenCaptchaVerificationFailsBeforeLookingUpUser() {
+        when(captchaService.verify(nullable(String.class), nullable(Integer.class))).thenReturn(false);
+
+        assertThatThrownBy(() -> provider.authenticate(loginToken(false)))
+                .isInstanceOf(CaptchaVerificationException.class)
+                .hasMessage("Captcha verification failed");
+        verifyNoInteractions(userService);
+    }
+
+    @Test
     void rejectsLockedAndDisabledUsers() {
         user.setStatus(UserStatus.LOCKED);
         assertThatThrownBy(() -> provider.authenticate(loginToken(false)))
@@ -142,6 +159,7 @@ class UsernamePasswordAuthenticationProviderTests {
                 .isInstanceOf(SessionAuthenticationException.class)
                 .hasMessage("User is already logged in elsewhere");
         verify(authorizationService, never()).remove(org.mockito.ArgumentMatchers.any());
+        verify(authorizationService, never()).removeAndInvalidateSession(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -153,7 +171,7 @@ class UsernamePasswordAuthenticationProviderTests {
         Authentication authentication = provider.authenticate(loginToken(true));
 
         assertThat(authentication.isAuthenticated()).isTrue();
-        verify(authorizationService).remove(existingAuthorization);
+        verify(authorizationService).removeAndInvalidateSession(existingAuthorization);
     }
 
     @Test

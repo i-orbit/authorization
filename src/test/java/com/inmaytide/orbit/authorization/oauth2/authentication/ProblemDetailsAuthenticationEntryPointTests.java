@@ -1,7 +1,7 @@
 package com.inmaytide.orbit.authorization.oauth2.authentication;
 
-import com.inmaytide.orbit.framework.security.ResponseWrapperAuthenticationEntryPoint;
-import com.inmaytide.orbit.framework.security.domain.ErrorCode;
+import com.inmaytide.orbit.framework.security.ProblemDetailsAuthenticationEntryPoint;
+import com.inmaytide.orbit.framework.security.domain.SecurityErrorCode;
 import com.inmaytide.orbit.framework.security.domain.TenantStatusException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +11,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AccountExpiredException;
@@ -45,31 +47,34 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ResponseWrapperAuthenticationEntryPointTests {
+class ProblemDetailsAuthenticationEntryPointTests {
 
-    private final JsonMapper objectMapper = JsonMapper.builder().build();
+    private final JsonMapper objectMapper = JsonMapper.builder()
+            .addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+            .build();
 
-    private ResponseWrapperAuthenticationEntryPoint entryPoint;
+    private ProblemDetailsAuthenticationEntryPoint entryPoint;
 
     @BeforeEach
     void setUp() {
-        entryPoint = new ResponseWrapperAuthenticationEntryPoint(objectMapper);
+        entryPoint = new ProblemDetailsAuthenticationEntryPoint(objectMapper);
     }
 
     @ParameterizedTest
     @MethodSource("authenticationFailures")
-    void writesMappedErrorAsJsonWithMatchingHttpStatus(AuthenticationException exception,
-                                                       ErrorCode expected) throws Exception {
+    void writesMappedErrorAsProblemDetailsWithMatchingHttpStatus(AuthenticationException exception,
+                                                                 SecurityErrorCode expected) throws Exception {
         MockHttpServletResponse response = commence(exception);
 
         assertThat(response.getStatus()).isEqualTo(expected.getHttpStatus().value());
-        assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         assertThat(response.getCharacterEncoding()).isEqualTo(StandardCharsets.UTF_8.name());
 
         JsonNode body = objectMapper.readTree(response.getContentAsString());
         assertThat(body.get("status").asInt()).isEqualTo(expected.getHttpStatus().value());
-        assertThat(body.get("errorCode").asString()).isEqualTo(expected.getCode());
-        assertThat(body.get("description").asString()).isEqualTo(expected.getDescription());
+        assertThat(body.get("title").asString()).isEqualTo(expected.getHttpStatus().getReasonPhrase());
+        assertThat(body.get("detail").asString()).isEqualTo(expected.getDescription());
+        assertThat(body.get("code").asString()).isEqualTo(expected.getCode());
     }
 
     @Test
@@ -80,20 +85,20 @@ class ResponseWrapperAuthenticationEntryPointTests {
 
         MockHttpServletResponse response = commence(exception);
 
-        assertThat(response.getStatus()).isEqualTo(ErrorCode.SESSION_CONFLICT.getHttpStatus().value());
+        assertThat(response.getStatus()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getHttpStatus().value());
         JsonNode body = objectMapper.readTree(response.getContentAsString());
-        assertThat(body.get("errorCode").asString()).isEqualTo(ErrorCode.SESSION_CONFLICT.getCode());
+        assertThat(body.get("code").asString()).isEqualTo(SecurityErrorCode.SESSION_CONFLICT.getCode());
     }
 
     @Test
-    void writesUnifiedResponseWhenUsedAsAuthenticationFailureHandler() throws Exception {
+    void writesProblemDetailsWhenUsedAsAuthenticationFailureHandler() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
         entryPoint.onAuthenticationFailure(new MockHttpServletRequest(), response,
                 new OAuth2AuthenticationException("invalid_grant"));
 
-        assertThat(response.getStatus()).isEqualTo(ErrorCode.OAUTH2_AUTHENTICATION_ERROR.getHttpStatus().value());
+        assertThat(response.getStatus()).isEqualTo(SecurityErrorCode.OAUTH2_AUTHENTICATION_ERROR.getHttpStatus().value());
         JsonNode body = objectMapper.readTree(response.getContentAsString());
-        assertThat(body.get("errorCode").asString()).isEqualTo(ErrorCode.OAUTH2_AUTHENTICATION_ERROR.getCode());
+        assertThat(body.get("code").asString()).isEqualTo(SecurityErrorCode.OAUTH2_AUTHENTICATION_ERROR.getCode());
     }
 
     private MockHttpServletResponse commence(AuthenticationException exception) throws Exception {
@@ -104,52 +109,52 @@ class ResponseWrapperAuthenticationEntryPointTests {
 
     private static Stream<Arguments> authenticationFailures() {
         return Stream.of(
-                Arguments.of(new UsernameNotFoundException("not found"), ErrorCode.INVALID_CREDENTIALS),
-                Arguments.of(new BadCredentialsException("bad credentials"), ErrorCode.INVALID_CREDENTIALS),
-                Arguments.of(new CompromisedPasswordException("compromised"), ErrorCode.INVALID_CREDENTIALS),
-                Arguments.of(new LockedException("locked"), ErrorCode.ACCOUNT_LOCKED),
-                Arguments.of(new DisabledException("disabled"), ErrorCode.ACCOUNT_DISABLED),
-                Arguments.of(new AccountExpiredException("expired"), ErrorCode.ACCOUNT_EXPIRED),
-                Arguments.of(new CredentialsExpiredException("expired"), ErrorCode.CREDENTIALS_EXPIRED),
+                Arguments.of(new UsernameNotFoundException("not found"), SecurityErrorCode.INVALID_CREDENTIALS),
+                Arguments.of(new BadCredentialsException("bad credentials"), SecurityErrorCode.INVALID_CREDENTIALS),
+                Arguments.of(new CompromisedPasswordException("compromised"), SecurityErrorCode.INVALID_CREDENTIALS),
+                Arguments.of(new LockedException("locked"), SecurityErrorCode.ACCOUNT_LOCKED),
+                Arguments.of(new DisabledException("disabled"), SecurityErrorCode.ACCOUNT_DISABLED),
+                Arguments.of(new AccountExpiredException("expired"), SecurityErrorCode.ACCOUNT_EXPIRED),
+                Arguments.of(new CredentialsExpiredException("expired"), SecurityErrorCode.CREDENTIALS_EXPIRED),
                 Arguments.of(new AccountStatusException("invalid") {
-                }, ErrorCode.ACCOUNT_STATUS_INVALID),
-                Arguments.of(new SessionAuthenticationException("conflict"), ErrorCode.SESSION_CONFLICT),
-                Arguments.of(new TenantStatusException(ErrorCode.TENANT_DISABLED, "disabled"),
-                        ErrorCode.TENANT_DISABLED),
-                Arguments.of(new TenantStatusException(ErrorCode.TENANT_EXPIRED, "expired"),
-                        ErrorCode.TENANT_EXPIRED),
+                }, SecurityErrorCode.ACCOUNT_STATUS_INVALID),
+                Arguments.of(new SessionAuthenticationException("conflict"), SecurityErrorCode.SESSION_CONFLICT),
+                Arguments.of(new TenantStatusException(SecurityErrorCode.TENANT_DISABLED, "disabled"),
+                        SecurityErrorCode.TENANT_DISABLED),
+                Arguments.of(new TenantStatusException(SecurityErrorCode.TENANT_EXPIRED, "expired"),
+                        SecurityErrorCode.TENANT_EXPIRED),
                 Arguments.of(new InternalAuthenticationServiceException("unavailable"),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new AuthenticationServiceException("unavailable"),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new ProviderNotFoundException("unavailable"),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new AuthenticationCredentialsNotFoundException("required"),
-                        ErrorCode.AUTHENTICATION_REQUIRED),
+                        SecurityErrorCode.AUTHENTICATION_REQUIRED),
                 Arguments.of(new InsufficientAuthenticationException("required"),
-                        ErrorCode.AUTHENTICATION_REQUIRED),
+                        SecurityErrorCode.AUTHENTICATION_REQUIRED),
                 Arguments.of(new PreAuthenticatedCredentialsNotFoundException("required"),
-                        ErrorCode.AUTHENTICATION_REQUIRED),
+                        SecurityErrorCode.AUTHENTICATION_REQUIRED),
                 Arguments.of(new AuthenticationServiceException("introspection rejected",
                                 new OAuth2IntrospectionException("introspection failed",
                                         new RestClientResponseException("Unauthorized", HttpStatus.UNAUTHORIZED,
                                                 "Unauthorized", HttpHeaders.EMPTY, new byte[0],
                                                 StandardCharsets.UTF_8))),
-                        ErrorCode.AUTHENTICATION_SERVICE_REJECTED),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_REJECTED),
                 Arguments.of(new AuthenticationServiceException("introspection unreachable",
                                 new OAuth2IntrospectionException("connection refused",
                                         new ResourceAccessException("Connection refused"))),
-                        ErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
+                        SecurityErrorCode.AUTHENTICATION_SERVICE_UNAVAILABLE),
                 Arguments.of(new OAuth2AuthenticationException("invalid_request"),
-                        ErrorCode.OAUTH2_AUTHENTICATION_ERROR),
+                        SecurityErrorCode.OAUTH2_AUTHENTICATION_ERROR),
                 Arguments.of(new InvalidBearerTokenException("invalid_token"),
-                        ErrorCode.OAUTH2_AUTHENTICATION_ERROR),
+                        SecurityErrorCode.OAUTH2_AUTHENTICATION_ERROR),
                 Arguments.of(new RememberMeAuthenticationException("failed"),
-                        ErrorCode.AUTHENTICATION_FAILED),
-                Arguments.of(new NonceExpiredException("expired"), ErrorCode.AUTHENTICATION_FAILED),
-                Arguments.of(new InvalidOneTimeTokenException("invalid"), ErrorCode.AUTHENTICATION_FAILED),
+                        SecurityErrorCode.AUTHENTICATION_FAILED),
+                Arguments.of(new NonceExpiredException("expired"), SecurityErrorCode.AUTHENTICATION_FAILED),
+                Arguments.of(new InvalidOneTimeTokenException("invalid"), SecurityErrorCode.AUTHENTICATION_FAILED),
                 Arguments.of(new AuthenticationException("unknown") {
-                }, ErrorCode.AUTHENTICATION_FAILED)
+                }, SecurityErrorCode.AUTHENTICATION_FAILED)
         );
     }
 

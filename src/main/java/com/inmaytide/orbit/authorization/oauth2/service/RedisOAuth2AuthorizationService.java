@@ -4,8 +4,10 @@ import com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordA
 import com.inmaytide.orbit.framework.core.enums.ClientPlatform;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
@@ -17,25 +19,27 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.security.Principal;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_LOGIN_SESSION_TOKEN;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_PLATFORM;
 import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePasswordAuthenticationToken.PARAMETER_NAME_TENANT_ID;
 
 /**
  * 基于 Redis 的 OAuth2 授权服务实现。<br/>
  * 负责 OAuth2Authorization 的持久化、查询和删除，用于存储授权码、Access Token 及其关联的授权信息。<br/>
- * 支持通过授权 ID、Token 值及 Token 类型检索授权信息，并利用 Redis 实现授权信息的集中存储与过期管理。<br/>
+ * 使用 token / principal / login-session 索引替代 Redis KEYS 扫描，并让未完成的授权也落在 Redis，
+ * 以支持授权服务器多实例部署。
  *
  * @author inmaytide
  * @since 2023/04/29
@@ -43,90 +47,271 @@ import static com.inmaytide.orbit.authorization.oauth2.authentication.UsernamePa
 @Component
 public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationService {
 
-    private static final String REDIS_KEY_PREFIX = "orbit:authorization:";
+    private static final String AUTHORIZATION_KEY_PREFIX = "orbit:authorization:auth:";
 
-    private static final long TTL_AUTHORIZATION = 30 * 60 * 1000;
+    private static final String TOKEN_KEY_PREFIX = "orbit:authorization:token:";
 
-    private static final Set<String> LOGIN_AUTHORIZATION_ATTRIBUTES = Set.of(PARAMETER_NAME_PLATFORM, PARAMETER_NAME_TENANT_ID);
+    private static final String PRINCIPAL_KEY_PREFIX = "orbit:authorization:principal:";
 
-    private final Map<String, OAuth2Authorization> initializedAuthorizations = new ConcurrentHashMap<>();
+    private static final String SESSION_KEY_PREFIX = "orbit:authorization:session:";
+
+    /**
+     * 尚未换取 access_token 的授权（授权码阶段）只需保留到 code 过期之后。
+     */
+    private static final Duration INITIALIZED_AUTHORIZATION_TTL = Duration.ofMinutes(10);
+
+    private static final Duration DEFAULT_AUTHORIZATION_TTL = Duration.ofMinutes(30);
+
+    private static final Set<String> LOGIN_AUTHORIZATION_ATTRIBUTES = Set.of(
+            PARAMETER_NAME_PLATFORM, PARAMETER_NAME_TENANT_ID, PARAMETER_NAME_LOGIN_SESSION_TOKEN);
 
     private final RedisTemplate<String, OAuth2Authorization> redisTemplate;
 
-    public RedisOAuth2AuthorizationService(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, OAuth2Authorization> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-        template.setKeySerializer(StringRedisSerializer.UTF_8);
-        template.setValueSerializer(new JdkSerializationRedisSerializer());
-        template.afterPropertiesSet();
-        this.redisTemplate = template;
+    private final StringRedisTemplate indexRedisTemplate;
+
+    private final LoginAuthenticationTokenService loginAuthenticationTokenService;
+
+    @Autowired
+    public RedisOAuth2AuthorizationService(RedisConnectionFactory connectionFactory,
+                                           LoginAuthenticationTokenService loginAuthenticationTokenService) {
+        this(createAuthorizationTemplate(connectionFactory), createIndexTemplate(connectionFactory),
+                loginAuthenticationTokenService);
     }
 
-    private String buildCacheKey(String authorizationId) {
-        return REDIS_KEY_PREFIX + authorizationId;
-    }
-
-    private String buildCacheKey(OAuth2Authorization authorization) {
-        return buildCacheKey(authorization.getId());
+    RedisOAuth2AuthorizationService(RedisTemplate<String, OAuth2Authorization> redisTemplate,
+                                    StringRedisTemplate indexRedisTemplate,
+                                    LoginAuthenticationTokenService loginAuthenticationTokenService) {
+        this.redisTemplate = redisTemplate;
+        this.indexRedisTemplate = indexRedisTemplate;
+        this.loginAuthenticationTokenService = loginAuthenticationTokenService;
     }
 
     @Override
     public void save(@Nonnull OAuth2Authorization authorization) {
         Assert.notNull(authorization, "Authorization cannot be null");
         OAuth2Authorization enriched = copyLoginAttributes(authorization);
-        if (isComplete(enriched)) {
-            redisTemplate.opsForValue().set(buildCacheKey(enriched), enriched, Duration.ofMillis(TTL_AUTHORIZATION));
-        } else {
-            this.initializedAuthorizations.put(enriched.getId(), enriched);
-        }
+        Duration ttl = isComplete(enriched) ? authorizationTtl() : INITIALIZED_AUTHORIZATION_TTL;
+
+        redisTemplate.opsForValue().set(authorizationKey(enriched.getId()), enriched, ttl);
+        indexTokens(enriched, ttl);
+        indexPrincipalAndPlatform(enriched, ttl);
+        indexLoginSession(enriched, ttl);
     }
 
     @Override
     public void remove(@Nonnull OAuth2Authorization authorization) {
         Assert.notNull(authorization, "authorization cannot be null");
-        if (isComplete(authorization)) {
-            redisTemplate.opsForValue().getAndDelete(buildCacheKey(authorization));
-        } else {
-            this.initializedAuthorizations.remove(authorization.getId());
+        OAuth2Authorization target = findById(authorization.getId());
+        if (target == null) {
+            target = authorization;
         }
+        redisTemplate.delete(authorizationKey(target.getId()));
+        removeTokenIndexes(target);
+        removePrincipalIndex(target);
+        removeLoginSessionIndex(target);
     }
 
     @Override
-    public OAuth2Authorization findById(@Nonnull String id) {
+    public @Nullable OAuth2Authorization findById(@Nonnull String id) {
         Assert.hasText(id, "id cannot be empty");
-        return redisTemplate.opsForValue().get(buildCacheKey(id));
+        return redisTemplate.opsForValue().get(authorizationKey(id));
     }
 
     @Override
-    public OAuth2Authorization findByToken(@Nonnull String token, @Nullable OAuth2TokenType tokenType) {
+    public @Nullable OAuth2Authorization findByToken(@Nonnull String token, @Nullable OAuth2TokenType tokenType) {
         Assert.hasText(token, "token cannot be empty");
-        return Stream.concat(findAll().stream(), initializedAuthorizations.values().stream())
-                .filter(authorization -> hasToken(authorization, token, tokenType))
-                .findFirst()
-                .orElse(null);
-    }
+        String authorizationId = indexRedisTemplate.opsForValue().get(tokenKey(token));
+        if (!StringUtils.hasText(authorizationId)) {
+            return null;
+        }
 
-    private List<OAuth2Authorization> findAll() {
-        Set<String> keys = redisTemplate.keys(REDIS_KEY_PREFIX + "*");
-        if (keys == null || keys.isEmpty()) {
-            return Collections.emptyList();
+        OAuth2Authorization authorization = findById(authorizationId);
+        if (authorization == null) {
+            // 索引指向已过期的授权，顺手清理
+            indexRedisTemplate.delete(tokenKey(token));
+            return null;
         }
-        List<OAuth2Authorization> authorizations = redisTemplate.opsForValue().multiGet(keys);
-        if (authorizations == null) {
-            return Collections.emptyList();
+        if (!hasToken(authorization, token, tokenType)) {
+            // 可能是 token_type_hint 不匹配，保留索引供后续不带 hint 的查询使用
+            return null;
         }
-        return authorizations.stream()
-                .filter(Objects::nonNull)
-                .toList();
+
+        // 用户每次 API 请求都会 introspect access_token，借此滑动登录会话的空闲时间
+        renewLoginSession(authorization);
+        return authorization;
     }
 
     public List<OAuth2Authorization> findByPrincipalNameAndPlatform(@Nonnull String principalName,
                                                                     @Nonnull ClientPlatform platform) {
         Assert.hasText(principalName, "principalName cannot be empty");
         Assert.notNull(platform, "platform cannot be null");
-        return Stream.concat(findAll().stream(), initializedAuthorizations.values().stream())
+
+        Set<String> authorizationIds = indexRedisTemplate.opsForSet()
+                .members(principalKey(principalName, platform.name()));
+        if (authorizationIds == null || authorizationIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return authorizationIds.stream()
+                .map(this::findById)
+                .filter(Objects::nonNull)
                 .filter(authorization -> matchesPrincipalNameAndPlatform(authorization, principalName, platform))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 强制替换在线会话时，同时注销该授权关联的登录会话及该会话下的全部授权，
+     * 避免旧浏览器静默重新授权。
+     */
+    public void removeAndInvalidateSession(@Nonnull OAuth2Authorization authorization) {
+        Object value = authorization.getAttribute(PARAMETER_NAME_LOGIN_SESSION_TOKEN);
+        if (value instanceof String sessionToken && !sessionToken.isBlank()) {
+            removeBySessionToken(sessionToken);
+            if (loginAuthenticationTokenService != null) {
+                loginAuthenticationTokenService.remove(sessionToken);
+            }
+            return;
+        }
+        remove(authorization);
+    }
+
+    /**
+     * 注销登录会话下的全部授权，用于退出登录。
+     */
+    public void removeBySessionToken(@Nonnull String sessionToken) {
+        Assert.hasText(sessionToken, "sessionToken cannot be empty");
+        String sessionKey = sessionKey(sessionToken);
+        Set<String> authorizationIds = indexRedisTemplate.opsForSet().members(sessionKey);
+        if (authorizationIds != null) {
+            authorizationIds.stream()
+                    .map(this::findById)
+                    .filter(Objects::nonNull)
+                    .forEach(this::remove);
+        }
+        indexRedisTemplate.delete(sessionKey);
+    }
+
+    private void renewLoginSession(@Nonnull OAuth2Authorization authorization) {
+        if (loginAuthenticationTokenService == null) {
+            return;
+        }
+        Object value = authorization.getAttribute(PARAMETER_NAME_LOGIN_SESSION_TOKEN);
+        if (value instanceof String sessionToken && !sessionToken.isBlank()) {
+            loginAuthenticationTokenService.renew(sessionToken);
+            indexRedisTemplate.expire(sessionKey(sessionToken), authorizationTtl());
+        }
+    }
+
+    private Duration authorizationTtl() {
+        if (loginAuthenticationTokenService == null) {
+            return DEFAULT_AUTHORIZATION_TTL;
+        }
+        Duration validity = loginAuthenticationTokenService.getValidity();
+        return validity == null ? DEFAULT_AUTHORIZATION_TTL : validity;
+    }
+
+    private void indexTokens(OAuth2Authorization authorization, Duration ttl) {
+        indexToken(authorization, authorization.getToken(OAuth2AuthorizationCode.class), ttl);
+        indexToken(authorization, authorization.getAccessToken(), ttl);
+        indexToken(authorization, authorization.getRefreshToken(), ttl);
+
+        Object state = authorization.getAttribute(OAuth2ParameterNames.STATE);
+        if (state instanceof String value && !value.isBlank()) {
+            indexValue(tokenKey(value), authorization.getId(), ttl);
+        }
+    }
+
+    private void indexToken(OAuth2Authorization authorization,
+                            OAuth2Authorization.Token<?> token,
+                            Duration ttl) {
+        if (token == null || token.getToken() == null) {
+            return;
+        }
+        String tokenValue = token.getToken().getTokenValue();
+        if (StringUtils.hasText(tokenValue)) {
+            indexValue(tokenKey(tokenValue), authorization.getId(), ttl);
+        }
+    }
+
+    private void indexValue(String key, String authorizationId, Duration ttl) {
+        indexRedisTemplate.opsForValue().set(key, authorizationId, ttl);
+    }
+
+    private void indexPrincipalAndPlatform(OAuth2Authorization authorization, Duration ttl) {
+        String principalName = authorization.getPrincipalName();
+        Object platform = authorization.getAttribute(PARAMETER_NAME_PLATFORM);
+        if (!StringUtils.hasText(principalName) || platform == null) {
+            return;
+        }
+        String key = principalKey(principalName, platform.toString());
+        indexRedisTemplate.opsForSet().add(key, authorization.getId());
+        indexRedisTemplate.expire(key, ttl);
+    }
+
+    private void indexLoginSession(OAuth2Authorization authorization, Duration ttl) {
+        Object value = authorization.getAttribute(PARAMETER_NAME_LOGIN_SESSION_TOKEN);
+        if (!(value instanceof String sessionToken) || sessionToken.isBlank()) {
+            return;
+        }
+        String key = sessionKey(sessionToken);
+        indexRedisTemplate.opsForSet().add(key, authorization.getId());
+        indexRedisTemplate.expire(key, ttl);
+    }
+
+    private void removeTokenIndexes(OAuth2Authorization authorization) {
+        List<String> keys = new ArrayList<>(4);
+        addTokenKey(keys, authorization.getToken(OAuth2AuthorizationCode.class));
+        addTokenKey(keys, authorization.getAccessToken());
+        addTokenKey(keys, authorization.getRefreshToken());
+
+        Object state = authorization.getAttribute(OAuth2ParameterNames.STATE);
+        if (state instanceof String value && !value.isBlank()) {
+            keys.add(tokenKey(value));
+        }
+        if (!keys.isEmpty()) {
+            indexRedisTemplate.delete(keys);
+        }
+    }
+
+    private void addTokenKey(List<String> keys, OAuth2Authorization.Token<?> token) {
+        if (token == null || token.getToken() == null) {
+            return;
+        }
+        String tokenValue = token.getToken().getTokenValue();
+        if (StringUtils.hasText(tokenValue)) {
+            keys.add(tokenKey(tokenValue));
+        }
+    }
+
+    private void removePrincipalIndex(OAuth2Authorization authorization) {
+        String principalName = authorization.getPrincipalName();
+        Object platform = authorization.getAttribute(PARAMETER_NAME_PLATFORM);
+        if (StringUtils.hasText(principalName) && platform != null) {
+            indexRedisTemplate.opsForSet().remove(
+                    principalKey(principalName, platform.toString()), authorization.getId());
+        }
+    }
+
+    private void removeLoginSessionIndex(OAuth2Authorization authorization) {
+        Object value = authorization.getAttribute(PARAMETER_NAME_LOGIN_SESSION_TOKEN);
+        if (value instanceof String sessionToken && !sessionToken.isBlank()) {
+            indexRedisTemplate.opsForSet().remove(sessionKey(sessionToken), authorization.getId());
+        }
+    }
+
+    private String authorizationKey(String authorizationId) {
+        return AUTHORIZATION_KEY_PREFIX + authorizationId;
+    }
+
+    private String tokenKey(String token) {
+        return TOKEN_KEY_PREFIX + token;
+    }
+
+    private String principalKey(String principalName, String platform) {
+        return PRINCIPAL_KEY_PREFIX + principalName + ":" + platform;
+    }
+
+    private String sessionKey(String sessionToken) {
+        return SESSION_KEY_PREFIX + sessionToken;
     }
 
     private static boolean matchesPrincipalNameAndPlatform(OAuth2Authorization authorization,
@@ -151,17 +336,25 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
         }
 
         Map<String, Object> parameters = token.getAdditionalParameters();
-        if (parameters == null || parameters.isEmpty()) {
+        Object loginSessionToken = token.getDetails();
+        boolean noLoginParameters = parameters == null || parameters.isEmpty();
+        boolean noLoginSessionToken = !(loginSessionToken instanceof String);
+        if (noLoginParameters && noLoginSessionToken) {
             return authorization;
         }
 
         return OAuth2Authorization.from(authorization)
                 .attributes(attributes -> {
-                    for (String name : LOGIN_AUTHORIZATION_ATTRIBUTES) {
-                        Object value = parameters.get(name);
-                        if (value != null) {
-                            attributes.putIfAbsent(name, value);
+                    if (parameters != null) {
+                        for (String name : LOGIN_AUTHORIZATION_ATTRIBUTES) {
+                            Object value = parameters.get(name);
+                            if (value != null) {
+                                attributes.putIfAbsent(name, value);
+                            }
                         }
+                    }
+                    if (loginSessionToken instanceof String sessionToken && !sessionToken.isBlank()) {
+                        attributes.putIfAbsent(PARAMETER_NAME_LOGIN_SESSION_TOKEN, sessionToken);
                     }
                 })
                 .build();
@@ -173,7 +366,8 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
 
     private static boolean hasToken(OAuth2Authorization authorization, String token, @Nullable OAuth2TokenType tokenType) {
         if (tokenType == null) {
-            return matchesState(authorization, token) || matchesAuthorizationCode(authorization, token) || matchesAccessToken(authorization, token) || matchesRefreshToken(authorization, token);
+            return matchesState(authorization, token) || matchesAuthorizationCode(authorization, token)
+                    || matchesAccessToken(authorization, token) || matchesRefreshToken(authorization, token);
         } else if (OAuth2ParameterNames.STATE.equals(tokenType.getValue())) {
             return matchesState(authorization, token);
         } else if (OAuth2ParameterNames.CODE.equals(tokenType.getValue())) {
@@ -205,4 +399,20 @@ public class RedisOAuth2AuthorizationService implements OAuth2AuthorizationServi
         return refreshToken != null && refreshToken.getToken().getTokenValue().equals(token);
     }
 
+    private static RedisTemplate<String, OAuth2Authorization> createAuthorizationTemplate(
+            RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, OAuth2Authorization> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(StringRedisSerializer.UTF_8);
+        template.setValueSerializer(new JdkSerializationRedisSerializer());
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    private static StringRedisTemplate createIndexTemplate(RedisConnectionFactory connectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(connectionFactory);
+        template.afterPropertiesSet();
+        return template;
+    }
 }
